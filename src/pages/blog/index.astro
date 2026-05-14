@@ -1,0 +1,88 @@
+---
+export const prerender = true;
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { getCollection } from 'astro:content';
+
+const allPosts = await getCollection('posts', ({ data }) => !data.draft);
+allPosts.sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf());
+---
+
+<BaseLayout title="/blog · hibiki" description="All posts">
+  <div class="min-h-screen py-16 px-4">
+    <div class="max-w-3xl mx-auto font-mono">
+
+      <header class="mb-10">
+        <div class="text-sm mb-2" style="color: var(--color-muted);">
+          <a href="/" class="transition-colors" style="color: var(--color-muted);"
+             onmouseover="this.style.color='var(--color-prompt)'"
+             onmouseout="this.style.color='var(--color-muted)'">
+            <span data-prompt>visitor@hibiki:~$</span>
+          </a>
+          <span class="mx-2">ls</span>
+          <span style="color: var(--color-cmd);">~/blog</span>
+        </div>
+        <h1 class="text-xl font-semibold" style="color: var(--color-text);">
+          <span style="color: var(--color-prompt);">~</span>/blog
+        </h1>
+        <p class="text-sm mt-1" style="color: var(--color-muted);">
+          {allPosts.length} post(s) — sorted by date
+        </p>
+      </header>
+
+      <div class="border-t mb-8" style="border-color: var(--color-border);"></div>
+
+      <ul class="space-y-8 list-none p-0">
+        {allPosts.map(post => {
+          const dateStr = post.data.date.toISOString().split('T')[0];
+          return (
+            <li>
+              <div class="text-xs mb-1" style="color: var(--color-muted);">
+                <span style="color: var(--color-prompt);">$</span> {dateStr}
+              </div>
+              <a
+                href={`/blog/${post.id}`}
+                class="block text-base font-medium transition-colors"
+                style="color: var(--color-cmd);"
+                onmouseover="this.style.color='var(--color-link-hover)'"
+                onmouseout="this.style.color='var(--color-cmd)'"
+              >
+                {post.data.title}
+              </a>
+              <p class="text-sm mt-1 leading-relaxed" style="color: var(--color-muted);">
+                {post.data.description}
+              </p>
+              {post.data.tags && post.data.tags.length > 0 && (
+                <div class="mt-2 flex flex-wrap gap-2">
+                  {post.data.tags.map(tag => (
+                    <span
+                      class="text-xs px-2 py-0.5 rounded border"
+                      style="color: var(--color-accent); background: var(--color-code-bg); border-color: var(--color-border);"
+                    >
+                      #{tag}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+
+      {allPosts.length === 0 && (
+        <div class="text-sm" style="color: var(--color-muted);">
+          <span style="color: var(--color-error);">✗</span> No posts found.
+        </div>
+      )}
+
+      <footer class="mt-16 pt-6 border-t text-sm" style="border-color: var(--color-border); color: var(--color-muted);">
+        <a href="/" class="transition-colors"
+           style="color: var(--color-muted);"
+           onmouseover="this.style.color='var(--color-prompt)'"
+           onmouseout="this.style.color='var(--color-muted)'">
+          ← back to terminal
+        </a>
+      </footer>
+
+    </div>
+  </div>
+</BaseLayout>

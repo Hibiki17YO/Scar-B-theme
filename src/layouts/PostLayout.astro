@@ -1,0 +1,88 @@
+---
+import BaseLayout from './BaseLayout.astro';
+
+interface Props {
+  title: string;
+  description: string;
+  date: Date;
+  tags?: string[];
+  readingTime?: number;
+}
+
+const { title, description, date, tags = [], readingTime } = Astro.props;
+
+const terminalDate = date.toISOString().split('T')[0];
+---
+
+<BaseLayout title={`${title} · hibiki`} description={description}>
+  <div class="min-h-screen py-12 px-4">
+    <article class="max-w-[72ch] mx-auto">
+
+      <header class="mb-10">
+        <nav class="mb-6 text-sm font-mono">
+          <a
+            href="/"
+            style="color: var(--color-muted);"
+            class="hover:text-[color:var(--color-prompt)] transition-colors"
+          ><span data-prompt>visitor@hibiki:~$</span></a>
+          <span style="color: var(--color-muted);" class="mx-2">cd</span>
+          <a
+            href="/blog"
+            style="color: var(--color-cmd);"
+            class="hover:text-[color:var(--color-link-hover)] transition-colors"
+          >~/blog</a>
+        </nav>
+
+        <div class="text-sm mb-4 font-mono" style="color: var(--color-muted);">
+          <span style="color: var(--color-prompt);"># </span>
+          <time datetime={date.toISOString()}>{terminalDate}</time>
+          {readingTime && (
+            <>
+              <span class="mx-3">·</span>
+              <span>{readingTime} min read</span>
+            </>
+          )}
+          {tags.length > 0 && (
+            <>
+              <span class="mx-3">·</span>
+              {tags.map(tag => (
+                <span style="color: var(--color-accent);" class="mr-2">#{tag}</span>
+              ))}
+            </>
+          )}
+        </div>
+
+        <h1 class="text-2xl md:text-3xl font-bold leading-tight mb-3" style="color: var(--color-text);">
+          {title}
+        </h1>
+
+        <p class="text-base leading-relaxed" style="color: var(--color-muted);">
+          {description}
+        </p>
+
+        <div class="mt-6 border-t" style="border-color: var(--color-border);"></div>
+      </header>
+
+      <div class="prose">
+        <slot />
+      </div>
+
+      <footer class="mt-16 pt-6 border-t" style="border-color: var(--color-border);">
+        <div class="flex items-center justify-between text-sm font-mono" style="color: var(--color-muted);">
+          <a
+            href="/blog"
+            class="flex items-center gap-2 transition-colors"
+            style="color: var(--color-muted);"
+            onmouseover="this.style.color='var(--color-prompt)'"
+            onmouseout="this.style.color='var(--color-muted)'"
+          >
+            <span>←</span>
+            <span>back to /blog</span>
+          </a>
+          <span><span data-prompt>visitor@hibiki:~$</span> <span class="cursor-blink"></span></span>
+        </div>
+      </footer>
+
+    </article>
+  </div>
+</BaseLayout>

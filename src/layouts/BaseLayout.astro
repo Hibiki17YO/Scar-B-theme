@@ -1,0 +1,41 @@
+---
+import '../styles/global.css';
+
+interface Props {
+  title?: string;
+  description?: string;
+}
+
+const {
+  title = 'hibiki · blog',
+  description = 'A terminal-style personal blog.',
+} = Astro.props;
+---
+
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content={description} />
+    <meta name="generator" content={Astro.generator} />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" id="site-favicon" />
+    <title>{title}</title>
+    <script is:inline>
+      (function() {
+        fetch('/api/config').then(function(r){ return r.json(); }).then(function(cfg) {
+          if (cfg.siteTitle) document.title = cfg.siteTitle;
+          if (cfg.siteIconUrl) {
+            var el = document.getElementById('site-favicon');
+            if (el) { el.href = cfg.siteIconUrl; el.type = cfg.siteIconUrl.endsWith('.ico') ? 'image/x-icon' : 'image/svg+xml'; }
+          }
+          var prompt = (cfg.username || 'visitor') + '@' + (cfg.hostname || 'hibiki') + ':~$';
+          document.querySelectorAll('[data-prompt]').forEach(function(el) { el.textContent = prompt; });
+        }).catch(function(){});
+      })();
+    </script>
+  </head>
+  <body>
+    <slot />
+  </body>
+</html>

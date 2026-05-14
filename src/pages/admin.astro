@@ -1,0 +1,714 @@
+---
+export const prerender = true;
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { defaultConfig } from '../config/terminal.config';
+const defaultConfigJson = JSON.stringify(defaultConfig);
+---
+
+<BaseLayout title="Terminal Config — Admin" description="Edit terminal configuration">
+
+  <!-- Auth overlay: shown when password is set and session not yet verified -->
+  <div id="auth-overlay" style="display:none;position:fixed;inset:0;background:var(--color-bg);z-index:100;align-items:center;justify-content:center;">
+    <div style="border:1px solid var(--color-border);background:var(--color-terminal);padding:2rem;font-family:var(--font-mono);width:min(440px,90vw);">
+      <div style="background:#1a1a1a;border-bottom:1px solid var(--color-border);padding:0.4rem 0.8rem;margin:-2rem -2rem 1.5rem -2rem;font-size:0.75rem;color:var(--color-muted);">admin@terminal — authenticate</div>
+      <p style="color:var(--color-muted);font-size:0.875rem;margin-bottom:1rem;">
+        <span style="color:var(--color-prompt);">visitor@terminal:~$</span>
+        <span style="color:var(--color-cmd);"> su</span>
+      </p>
+      <div style="display:flex;align-items:center;gap:0.75rem;">
+        <span style="color:var(--color-muted);font-size:0.875rem;white-space:nowrap;">password:</span>
+        <input id="auth-input" type="password"
+          style="flex:1;background:#0d0d0d;border:1px solid var(--color-border);color:var(--color-text);font-family:var(--font-mono);font-size:0.875rem;padding:0.35rem 0.6rem;outline:none;"
+          autofocus />
+      </div>
+      <p id="auth-error" style="color:var(--color-error);font-size:0.8rem;margin-top:0.75rem;display:none;">access denied</p>
+    </div>
+  </div>
+
+  <!-- Main admin panel: hidden until auth passes -->
+  <div id="admin-panel" style="display:none;">
+    <div style="display:flex;justify-content:center;width:100%;">
+      <div style="width:100%;max-width:860px;">
+
+        <!-- Title bar -->
+        <div style="background:#1a1a1a;border:1px solid var(--color-border);border-bottom:none;padding:0.5rem 1rem;display:flex;align-items:center;gap:1rem;">
+          <span style="color:var(--color-muted);font-size:0.75rem;font-family:var(--font-mono);opacity:0.8;">admin@terminal — config</span>
+          <span id="icp-preview" style="margin-left:auto;font-size:0.7rem;color:var(--color-muted);font-family:var(--font-mono);opacity:0.6;"></span>
+          <a href="/" style="font-size:0.75rem;color:var(--color-muted);text-decoration:none;" onmouseover="this.style.color='var(--color-cmd)'" onmouseout="this.style.color='var(--color-muted)'">← view site</a>
+        </div>
+
+        <!-- Main panel -->
+        <div style="border:1px solid var(--color-border);background:var(--color-terminal);padding:2rem;font-family:var(--font-mono);">
+
+          <!-- SITE METADATA -->
+          <section class="config-section">
+            <h2 class="section-title">SITE METADATA</h2>
+            <div class="field-row">
+              <label class="field-label" for="f-site-title">page title <span class="hint">(browser tab, leave empty to use default)</span></label>
+              <input id="f-site-title" type="text" class="field-input" placeholder="visitor@hibiki:~$" />
+            </div>
+            <div class="field-row" style="margin-top:0.5rem;">
+              <label class="field-label" for="f-site-icon">favicon URL <span class="hint">(absolute or relative, leave empty for default)</span></label>
+              <input id="f-site-icon" type="text" class="field-input" placeholder="/favicon.svg" />
+            </div>
+            <div style="margin-top:0.75rem;display:flex;align-items:center;gap:0.75rem;">
+              <span style="color:var(--color-muted);font-size:0.75rem;">preview:</span>
+              <img id="icon-preview" src="/favicon.svg" alt="favicon preview" style="width:1.25rem;height:1.25rem;object-fit:contain;border:1px solid var(--color-border);padding:2px;" />
+              <span id="title-preview" style="color:var(--color-muted);font-size:0.75rem;font-family:var(--font-mono);"></span>
+            </div>
+          </section>
+
+          <div class="divider"></div>
+
+          <!-- IDENTITY -->
+          <section class="config-section">
+            <h2 class="section-title">IDENTITY</h2>
+            <div class="field-row">
+              <label class="field-label" for="f-username">username</label>
+              <input id="f-username" type="text" class="field-input" placeholder="visitor" />
+            </div>
+            <div class="field-row" style="margin-top:0.5rem;">
+              <label class="field-label" for="f-hostname">hostname</label>
+              <input id="f-hostname" type="text" class="field-input" placeholder="hibiki1779.icu" />
+            </div>
+            <div class="field-row" style="margin-top:0.5rem;">
+              <label class="field-label" for="f-icp">ICP number <span class="hint">(shown at top-right of title bar, leave empty to hide)</span></label>
+              <input id="f-icp" type="text" class="field-input" placeholder="京ICP备XXXXXXXX号" />
+            </div>
+            <div class="field-row" style="margin-top:0.5rem;">
+              <label class="field-label" for="f-copyright">copyright <span class="hint">(centered in title bar, leave empty to hide)</span></label>
+              <input id="f-copyright" type="text" class="field-input" placeholder="© 2026 Hibiki. All rights reserved." />
+            </div>
+          </section>
+
+          <div class="divider"></div>
+
+          <!-- SECURITY -->
+          <section class="config-section">
+            <h2 class="section-title">SECURITY</h2>
+            <p style="color:var(--color-muted);font-size:0.75rem;margin-bottom:1rem;">
+              All passwords stored as SHA-256 hashes in localStorage. Protects against casual access, not determined attackers.
+            </p>
+            <div style="margin-bottom:1rem;padding-bottom:1rem;border-bottom:1px dashed var(--color-border);">
+              <p style="color:var(--color-muted);font-size:0.75rem;margin-bottom:0.75rem;">admin panel (config editor)</p>
+              <div class="field-row">
+                <label class="field-label" for="f-admin-cmd">command <span class="hint">(hidden from help)</span></label>
+                <input id="f-admin-cmd" type="text" class="field-input" placeholder="su" />
+              </div>
+              <div class="field-row" style="margin-top:0.5rem;">
+                <label class="field-label" for="f-new-pass">new password <span class="hint">(leave empty to keep)</span></label>
+                <input id="f-new-pass" type="password" class="field-input" placeholder="••••••••" />
+              </div>
+              <div class="field-row" style="margin-top:0.5rem;">
+                <label class="field-label" for="f-confirm-pass">confirm password</label>
+                <input id="f-confirm-pass" type="password" class="field-input" placeholder="••••••••" />
+              </div>
+              <p id="pass-error" style="color:var(--color-error);font-size:0.8rem;margin-top:0.5rem;display:none;"></p>
+            </div>
+            <div>
+              <p style="color:var(--color-muted);font-size:0.75rem;margin-bottom:0.75rem;">blog admin (post editor)</p>
+              <div class="field-row">
+                <label class="field-label" for="f-blog-cmd">command <span class="hint">(hidden from help)</span></label>
+                <input id="f-blog-cmd" type="text" class="field-input" placeholder="sudo blog" />
+              </div>
+              <div class="field-row" style="margin-top:0.5rem;">
+                <label class="field-label" for="f-blog-new-pass">new password <span class="hint">(leave empty to keep)</span></label>
+                <input id="f-blog-new-pass" type="password" class="field-input" placeholder="••••••••" />
+              </div>
+              <div class="field-row" style="margin-top:0.5rem;">
+                <label class="field-label" for="f-blog-confirm-pass">confirm password</label>
+                <input id="f-blog-confirm-pass" type="password" class="field-input" placeholder="••••••••" />
+              </div>
+              <p id="blog-pass-error" style="color:var(--color-error);font-size:0.8rem;margin-top:0.5rem;display:none;"></p>
+            </div>
+          </section>
+
+          <div class="divider"></div>
+
+          <!-- ASCII ART -->
+          <section class="config-section">
+            <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1rem;">
+              <h2 class="section-title" style="margin-bottom:0;">ASCII ART</h2>
+              <label class="toggle-label">
+                <input id="toggle-dot-art" type="checkbox" class="toggle-check" />
+                <span class="toggle-text">show dot pattern</span>
+              </label>
+              <label class="toggle-label">
+                <input id="toggle-banner" type="checkbox" class="toggle-check" />
+                <span class="toggle-text">show banner</span>
+              </label>
+            </div>
+            <div id="dot-art-section" class="field-col">
+              <label class="field-label" for="f-dot-art">dot pattern</label>
+              <textarea id="f-dot-art" rows="22" class="field-textarea art-textarea"></textarea>
+            </div>
+            <div id="banner-section" class="field-col" style="margin-top:1.5rem;">
+              <label class="field-label" for="f-banner-art">banner art</label>
+              <textarea id="f-banner-art" rows="7" class="field-textarea art-textarea" style="color:var(--color-banner);"></textarea>
+            </div>
+          </section>
+
+          <div class="divider"></div>
+
+          <!-- NAME COMMAND -->
+          <section class="config-section">
+            <h2 class="section-title" style="margin-bottom:1rem;">NAME COMMAND</h2>
+            <div id="name-section" class="field-col">
+              <label class="field-label" for="f-name-lines">output lines <span class="hint">(one line per row)</span></label>
+              <textarea id="f-name-lines" rows="10" class="field-textarea"></textarea>
+            </div>
+          </section>
+
+          <div class="divider"></div>
+
+          <!-- WHOAMI -->
+          <section class="config-section">
+            <h2 class="section-title">WHOAMI</h2>
+            <div class="field-row">
+              <label class="field-label" for="f-whoami-display">display name</label>
+              <input id="f-whoami-display" type="text" class="field-input" placeholder="hibiki" />
+            </div>
+            <div class="field-col" style="margin-top:1rem;">
+              <label class="field-label" for="f-whoami-bio">bio <span class="hint">(one line per row)</span></label>
+              <textarea id="f-whoami-bio" rows="4" class="field-textarea"></textarea>
+            </div>
+            <div style="margin-top:1rem;">
+              <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.5rem;">
+                <span class="field-label">links</span>
+                <span class="hint">label + URL (e.g. github / https://github.com/you)</span>
+              </div>
+              <div id="links-container"></div>
+              <button id="add-link" class="btn-add" type="button">+ add link</button>
+            </div>
+          </section>
+
+          <div class="divider"></div>
+
+          <!-- PROJECTS -->
+          <section class="config-section">
+            <h2 class="section-title">PROJECTS</h2>
+            <div id="projects-container"></div>
+            <button id="add-project" class="btn-add" type="button">+ add project</button>
+          </section>
+
+          <div class="divider"></div>
+
+          <!-- BUILTIN COMMANDS -->
+          <section class="config-section">
+            <h2 class="section-title">BUILTIN COMMANDS</h2>
+            <p style="color:var(--color-muted);font-size:0.75rem;margin-bottom:1rem;">Rename or disable built-in commands. <code style="color:var(--color-accent);">clear</code> and <code style="color:var(--color-accent);">help</code> are always available.</p>
+            <div id="builtin-commands-container"></div>
+          </section>
+
+          <div class="divider"></div>
+
+          <!-- CUSTOM COMMANDS -->
+          <section class="config-section">
+            <h2 class="section-title">CUSTOM COMMANDS</h2>
+            <div id="commands-container"></div>
+            <button id="add-command" class="btn-add" type="button">+ add command</button>
+          </section>
+
+          <div class="divider"></div>
+
+          <!-- SITE INFO -->
+          <section class="config-section">
+            <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1rem;">
+              <h2 class="section-title" style="margin-bottom:0;">SITE INFO</h2>
+              <label class="toggle-label">
+                <input id="toggle-site-info" type="checkbox" class="toggle-check" />
+                <span class="toggle-text">show block</span>
+              </label>
+            </div>
+            <div id="site-info-section">
+              <div class="field-row" style="margin-bottom:0.75rem;">
+                <label class="field-label" for="f-site-start-date">site start date <span class="hint">(used to compute &#123;uptime&#125;)</span></label>
+                <input id="f-site-start-date" type="date" class="field-input" />
+              </div>
+              <div class="field-col">
+                <label class="field-label" for="f-site-info-template">
+                  template
+                  <span class="hint" style="display:block;margin-top:0.2rem;">variables: <code style="color:var(--color-accent);">&#123;uptime&#125;</code> <code style="color:var(--color-accent);">&#123;posts&#125;</code> <code style="color:var(--color-accent);">&#123;words&#125;</code> <code style="color:var(--color-accent);">&#123;last_update&#125;</code></span>
+                </label>
+                <textarea id="f-site-info-template" rows="3" class="field-textarea"></textarea>
+              </div>
+            </div>
+          </section>
+
+          <div class="divider"></div>
+
+          <!-- Actions -->
+          <div style="display:flex;gap:1rem;align-items:center;flex-wrap:wrap;">
+            <button id="btn-save" class="btn-primary" type="button">save</button>
+            <button id="btn-reset" class="btn-secondary" type="button">reset to defaults</button>
+            <span id="save-status" style="color:var(--color-success);font-size:0.875rem;opacity:0;transition:opacity 0.3s;"></span>
+            <a href="/" style="margin-left:auto;font-size:0.875rem;color:var(--color-muted);text-decoration:none;font-family:var(--font-mono);" onmouseover="this.style.color='var(--color-cmd)'" onmouseout="this.style.color='var(--color-muted)'">← view site</a>
+          </div>
+
+          <p style="color:var(--color-muted);font-size:0.75rem;margin-top:2rem;line-height:1.6;">
+            Changes are stored in your browser only (localStorage).
+          </p>
+
+        </div>
+      </div>
+    </div>
+  </div>
+
+</BaseLayout>
+
+<div id="default-config" data-config={defaultConfigJson} hidden></div>
+
+<script is:inline>
+  // ── SHA-256 ──────────────────────────────────────────────────────────────────
+
+  async function sha256hex(s) {
+    const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s));
+    return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+  }
+
+  // ── Config helpers ───────────────────────────────────────────────────────────
+
+  function getDefaults() {
+    const el = document.getElementById('default-config');
+    return JSON.parse(el?.dataset.config ?? '{}');
+  }
+
+  let _cachedConfig = null;
+
+  async function loadCurrent() {
+    if (_cachedConfig) return _cachedConfig;
+    try {
+      const res = await fetch('/api/config');
+      if (res.ok) {
+        _cachedConfig = await res.json();
+        return _cachedConfig;
+      }
+    } catch {}
+    return getDefaults();
+  }
+
+  // ── Auth ─────────────────────────────────────────────────────────────────────
+
+  async function checkAuth() {
+    const cfg = await loadCurrent();
+    const hash = cfg.adminPassHash ?? '';
+
+    if (!hash || sessionStorage.getItem('admin_auth') === '1') {
+      showPanel();
+      return;
+    }
+
+    const overlay = document.getElementById('auth-overlay');
+    overlay.style.display = 'flex';
+
+    const authInput = document.getElementById('auth-input');
+    authInput.focus();
+
+    authInput.addEventListener('keydown', async (e) => {
+      if (e.key !== 'Enter') return;
+      const val = authInput.value;
+      authInput.value = '';
+      const inputHash = await sha256hex(val);
+      if (inputHash === hash) {
+        sessionStorage.setItem('admin_auth', '1');
+        showPanel();
+      } else {
+        document.getElementById('auth-error').style.display = 'block';
+      }
+    });
+  }
+
+  // ── Dynamic rows ─────────────────────────────────────────────────────────────
+
+  function escHtml(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  function makeLinkRow(label, url) {
+    label = label ?? ''; url = url ?? '';
+    const div = document.createElement('div');
+    div.className = 'link-row';
+    div.style.cssText = 'display:flex;gap:0.5rem;margin-bottom:0.5rem;align-items:center;';
+    div.innerHTML = `
+      <input class="link-label field-input" type="text" placeholder="label (e.g. github)" value="${escHtml(label)}" style="flex:0 0 10rem;">
+      <input class="link-url field-input" type="text" placeholder="https://..." value="${escHtml(url)}" style="flex:1;">
+      <button class="remove-row btn-remove" type="button">✕</button>
+    `;
+    div.querySelector('.remove-row').addEventListener('click', () => div.remove());
+    return div;
+  }
+
+  function renderLinkRows(links) {
+    const c = document.getElementById('links-container');
+    c.innerHTML = '';
+    for (const l of (links ?? [])) c.appendChild(makeLinkRow(l.label, l.url));
+  }
+
+  function makeProjectRow(name, description) {
+    name = name ?? ''; description = description ?? '';
+    const div = document.createElement('div');
+    div.className = 'project-row';
+    div.style.cssText = 'display:flex;gap:0.5rem;margin-bottom:0.5rem;align-items:center;';
+    div.innerHTML = `
+      <input class="proj-name field-input" type="text" placeholder="project name" value="${escHtml(name)}" style="flex:0 0 14rem;">
+      <input class="proj-desc field-input" type="text" placeholder="description" value="${escHtml(description)}" style="flex:1;">
+      <button class="remove-row btn-remove" type="button">✕</button>
+    `;
+    div.querySelector('.remove-row').addEventListener('click', () => div.remove());
+    return div;
+  }
+
+  function makeCmdRow(name, description, output, enabled) {
+    name = name ?? ''; description = description ?? '— custom'; output = output ?? ''; enabled = enabled !== false;
+    const div = document.createElement('div');
+    div.className = 'cmd-row';
+    div.style.cssText = 'display:grid;grid-template-columns:1fr 1.5fr auto;gap:0.75rem;margin-bottom:0.75rem;align-items:start;';
+    div.innerHTML = `
+      <div style="display:flex;flex-direction:column;gap:0.4rem;">
+        <input class="cmd-name field-input" type="text" placeholder="command name" value="${escHtml(name)}" />
+        <input class="cmd-desc field-input" type="text" placeholder="— description in help" value="${escHtml(description)}" />
+        <label class="toggle-label">
+          <input type="checkbox" class="cmd-enabled toggle-check" ${enabled ? 'checked' : ''} />
+          <span class="toggle-text">enabled</span>
+        </label>
+      </div>
+      <textarea class="cmd-output field-textarea" rows="5" placeholder="output text (one line per row)">${escHtml(output)}</textarea>
+      <button class="remove-row btn-remove" type="button" style="margin-top:0.25rem;">✕</button>
+    `;
+    div.querySelector('.remove-row').addEventListener('click', () => div.remove());
+    return div;
+  }
+
+  function renderProjectRows(projects) {
+    const c = document.getElementById('projects-container');
+    c.innerHTML = '';
+    for (const p of (projects ?? [])) c.appendChild(makeProjectRow(p.name, p.description));
+  }
+
+  function renderBuiltinCommandRows(builtins) {
+    const c = document.getElementById('builtin-commands-container');
+    c.innerHTML = '';
+    for (const b of (builtins ?? [])) {
+      const row = document.createElement('div');
+      row.className = 'bc-row';
+      row.dataset.id = b.id;
+      row.style.cssText = 'display:grid;grid-template-columns:1fr 2fr auto;gap:0.75rem;align-items:center;margin-bottom:0.6rem;';
+      row.innerHTML = `
+        <input class="bc-name field-input" type="text" value="${escHtml(b.name)}" placeholder="command name" />
+        <input class="bc-desc field-input" type="text" value="${escHtml(b.description)}" placeholder="— description shown in help" />
+        <label class="toggle-label" style="white-space:nowrap;">
+          <input type="checkbox" class="bc-enabled toggle-check" ${b.enabled ? 'checked' : ''} />
+          <span class="toggle-text">enabled</span>
+        </label>
+      `;
+      c.appendChild(row);
+    }
+  }
+
+  function renderCommandRows(cmds) {
+    const c = document.getElementById('commands-container');
+    c.innerHTML = '';
+    for (const cc of (cmds ?? [])) c.appendChild(makeCmdRow(cc.name, cc.description, cc.output, cc.enabled));
+  }
+
+  // ── Toggle helpers ───────────────────────────────────────────────────────────
+
+  function applyToggle(sectionId, checked) {
+    const section = document.getElementById(sectionId);
+    if (section) {
+      section.style.opacity = checked ? '1' : '0.35';
+      section.style.pointerEvents = checked ? '' : 'none';
+    }
+  }
+
+  // ── Form fill ────────────────────────────────────────────────────────────────
+
+  async function preloadForm() {
+    const cfg = await loadCurrent();
+
+    const siteTitle = cfg.siteTitle ?? '';
+    const siteIcon  = cfg.siteIconUrl ?? '';
+    document.getElementById('f-site-title').value = siteTitle;
+    document.getElementById('f-site-icon').value  = siteIcon;
+    document.getElementById('title-preview').textContent = siteTitle || '(default)';
+    if (siteIcon) document.getElementById('icon-preview').src = siteIcon;
+
+    document.getElementById('f-username').value = cfg.username ?? '';
+    document.getElementById('f-hostname').value = cfg.hostname ?? '';
+    document.getElementById('f-icp').value = cfg.icpNumber ?? '';
+    document.getElementById('icp-preview').textContent = cfg.icpNumber ?? '';
+    document.getElementById('f-copyright').value = cfg.copyrightText ?? '';
+    document.getElementById('f-admin-cmd').value = cfg.adminCommand ?? 'su';
+    document.getElementById('f-new-pass').value = '';
+    document.getElementById('f-confirm-pass').value = '';
+    document.getElementById('f-blog-cmd').value = cfg.blogCommand ?? 'sudo blog';
+    document.getElementById('f-blog-new-pass').value = '';
+    document.getElementById('f-blog-confirm-pass').value = '';
+
+    const showDot = cfg.showDotArt !== false;
+    const showBan = cfg.showBanner !== false;
+
+    document.getElementById('toggle-dot-art').checked = showDot;
+    document.getElementById('toggle-banner').checked  = showBan;
+    applyToggle('dot-art-section', showDot);
+    applyToggle('banner-section',  showBan);
+
+    document.getElementById('f-dot-art').value = cfg.dotArt ?? '';
+    document.getElementById('f-banner-art').value = cfg.bannerArt ?? '';
+    document.getElementById('f-name-lines').value = (cfg.nameLines ?? []).join('\n');
+    document.getElementById('f-whoami-display').value = cfg.whoami?.displayName ?? '';
+    document.getElementById('f-whoami-bio').value = (cfg.whoami?.bio ?? []).join('\n');
+    renderLinkRows(cfg.whoami?.links ?? []);
+    renderProjectRows(cfg.projects);
+    renderBuiltinCommandRows(cfg.builtinCommands ?? []);
+    renderCommandRows(cfg.customCommands);
+
+    const showSI = cfg.showSiteInfo === true;
+    document.getElementById('toggle-site-info').checked = showSI;
+    applyToggle('site-info-section', showSI);
+    document.getElementById('f-site-start-date').value = cfg.siteStartDate ?? '';
+    document.getElementById('f-site-info-template').value = cfg.siteInfoTemplate ?? '';
+  }
+
+  // ── Collect ──────────────────────────────────────────────────────────────────
+
+  function splitLines(val) {
+    return val.replace(/\r/g, '').split('\n');
+  }
+
+  async function collectConfig() {
+    const projects = Array.from(document.querySelectorAll('.project-row')).map(row => ({
+      name: row.querySelector('.proj-name').value.trim(),
+      description: row.querySelector('.proj-desc').value.trim(),
+    })).filter(p => p.name);
+
+    const customCommands = Array.from(document.querySelectorAll('.cmd-row')).map(row => ({
+      name:        row.querySelector('.cmd-name').value.trim(),
+      description: row.querySelector('.cmd-desc').value.trim() || '— custom',
+      output:      row.querySelector('.cmd-output').value.replace(/\r/g, ''),
+      enabled:     row.querySelector('.cmd-enabled').checked,
+    })).filter(c => c.name);
+
+    const builtinCommands = Array.from(document.querySelectorAll('.bc-row')).map(row => ({
+      id:          row.dataset.id,
+      name:        row.querySelector('.bc-name').value.trim(),
+      description: row.querySelector('.bc-desc').value.trim(),
+      enabled:     row.querySelector('.bc-enabled').checked,
+    })).filter(b => b.id);
+
+    // Password handling
+    const current = await loadCurrent();
+    let adminPassHash = current.adminPassHash ?? '';
+    const newPass = document.getElementById('f-new-pass').value;
+    const confirmPass = document.getElementById('f-confirm-pass').value;
+    const passError = document.getElementById('pass-error');
+
+    if (newPass || confirmPass) {
+      if (newPass !== confirmPass) {
+        passError.textContent = 'passwords do not match';
+        passError.style.display = 'block';
+        return null;
+      }
+      passError.style.display = 'none';
+      adminPassHash = await sha256hex(newPass);
+    } else {
+      passError.style.display = 'none';
+    }
+
+    let blogPassHash = current.blogPassHash ?? '';
+    const newBlogPass = document.getElementById('f-blog-new-pass').value;
+    const confirmBlogPass = document.getElementById('f-blog-confirm-pass').value;
+    const blogPassError = document.getElementById('blog-pass-error');
+
+    if (newBlogPass || confirmBlogPass) {
+      if (newBlogPass !== confirmBlogPass) {
+        blogPassError.textContent = 'passwords do not match';
+        blogPassError.style.display = 'block';
+        return null;
+      }
+      blogPassError.style.display = 'none';
+      blogPassHash = await sha256hex(newBlogPass);
+    } else {
+      blogPassError.style.display = 'none';
+    }
+
+    return {
+      siteTitle:    document.getElementById('f-site-title').value.trim(),
+      siteIconUrl:  document.getElementById('f-site-icon').value.trim(),
+      username:  document.getElementById('f-username').value.trim(),
+      hostname:  document.getElementById('f-hostname').value.trim(),
+      icpNumber: document.getElementById('f-icp').value.trim(),
+      copyrightText: document.getElementById('f-copyright').value.trim(),
+      adminCommand: document.getElementById('f-admin-cmd').value.trim() || 'su',
+      adminPassHash,
+      blogCommand: document.getElementById('f-blog-cmd').value.trim() || 'sudo blog',
+      blogPassHash,
+      showDotArt: document.getElementById('toggle-dot-art').checked,
+      showBanner:  document.getElementById('toggle-banner').checked,
+      dotArt:    document.getElementById('f-dot-art').value.replace(/\r/g, ''),
+      bannerArt: document.getElementById('f-banner-art').value.replace(/\r/g, ''),
+      nameLines: splitLines(document.getElementById('f-name-lines').value),
+      whoami: {
+        displayName: document.getElementById('f-whoami-display').value.trim(),
+        bio:         splitLines(document.getElementById('f-whoami-bio').value),
+        links: Array.from(document.querySelectorAll('.link-row')).map(row => ({
+          label: row.querySelector('.link-label').value.trim(),
+          url:   row.querySelector('.link-url').value.trim(),
+        })).filter(l => l.label || l.url),
+      },
+      projects,
+      builtinCommands,
+      customCommands,
+      showSiteInfo:       document.getElementById('toggle-site-info').checked,
+      siteStartDate:      document.getElementById('f-site-start-date').value,
+      siteInfoTemplate:   document.getElementById('f-site-info-template').value.replace(/\r/g, ''),
+    };
+  }
+
+  // ── Status ───────────────────────────────────────────────────────────────────
+
+  function showStatus(msg) {
+    const el = document.getElementById('save-status');
+    el.textContent = msg;
+    el.style.opacity = '1';
+    setTimeout(() => { el.style.opacity = '0'; }, 2500);
+  }
+
+  // ── Wire up ──────────────────────────────────────────────────────────────────
+
+  document.addEventListener('DOMContentLoaded', () => {
+    checkAuth();
+
+    // Toggles
+    ['toggle-dot-art', 'toggle-banner', 'toggle-site-info'].forEach(id => {
+      const sectionMap = { 'toggle-dot-art': 'dot-art-section', 'toggle-banner': 'banner-section', 'toggle-site-info': 'site-info-section' };
+      document.getElementById(id).addEventListener('change', (e) => {
+        applyToggle(sectionMap[id], e.target.checked);
+      });
+    });
+
+    document.getElementById('add-link').addEventListener('click', () => {
+      document.getElementById('links-container').appendChild(makeLinkRow('', ''));
+    });
+
+    document.getElementById('add-project').addEventListener('click', () => {
+      document.getElementById('projects-container').appendChild(makeProjectRow('', ''));
+    });
+
+    document.getElementById('add-command').addEventListener('click', () => {
+      document.getElementById('commands-container').appendChild(makeCmdRow('', '— custom', '', true));
+    });
+
+    document.getElementById('f-site-title').addEventListener('input', (e) => {
+      document.getElementById('title-preview').textContent = e.target.value || '(default)';
+    });
+    document.getElementById('f-site-icon').addEventListener('input', (e) => {
+      const url = e.target.value.trim();
+      if (url) document.getElementById('icon-preview').src = url;
+    });
+
+    document.getElementById('f-icp').addEventListener('input', (e) => {
+      document.getElementById('icp-preview').textContent = e.target.value;
+    });
+
+    document.getElementById('btn-save').addEventListener('click', async () => {
+      const cfg = await collectConfig();
+      if (!cfg) return;
+      const res = await fetch('/api/config', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(cfg),
+      });
+      if (res.ok) {
+        _cachedConfig = cfg;
+        showStatus('✓ saved');
+      } else {
+        showStatus('✗ save failed');
+      }
+    });
+
+    document.getElementById('btn-reset').addEventListener('click', async () => {
+      const defaults = getDefaults();
+      const res = await fetch('/api/config', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      });
+      if (res.ok) {
+        _cachedConfig = defaults;
+        sessionStorage.removeItem('admin_auth');
+        sessionStorage.removeItem('blog_auth');
+        await preloadForm();
+        showStatus('↩ reset to defaults');
+      } else {
+        showStatus('✗ reset failed');
+      }
+    });
+  });
+
+  // showPanel also triggers form preload
+  function showPanel() {
+    document.getElementById('auth-overlay').style.display = 'none';
+    document.getElementById('admin-panel').style.display = 'block';
+    preloadForm();  // async, intentionally not awaited — form fills progressively
+  }
+</script>
+
+<style>
+  .config-section { margin-bottom: 0; }
+  .section-title {
+    color: var(--color-success);
+    font-size: 0.75rem;
+    letter-spacing: 0.1em;
+    margin: 0 0 1rem 0;
+    font-weight: 600;
+  }
+  .divider { border-top: 1px solid var(--color-border); margin: 1.5rem 0; }
+  .field-row { display: flex; align-items: center; gap: 1rem; }
+  .field-col { display: flex; flex-direction: column; gap: 0.4rem; }
+  .field-label { color: var(--color-muted); font-size: 0.8rem; min-width: 10rem; flex-shrink: 0; }
+  .hint { font-size: 0.7rem; opacity: 0.6; }
+  .field-input {
+    background: #0d0d0d; border: 1px solid var(--color-border);
+    color: var(--color-text); font-family: var(--font-mono); font-size: 0.875rem;
+    padding: 0.35rem 0.6rem; outline: none; flex: 1; transition: border-color 0.15s;
+  }
+  .field-input:focus { border-color: var(--color-prompt); }
+  .field-textarea {
+    background: #0d0d0d; border: 1px solid var(--color-border);
+    color: var(--color-text); font-family: var(--font-mono); font-size: 0.875rem;
+    padding: 0.5rem 0.6rem; outline: none; resize: vertical; width: 100%;
+    line-height: 1.5; transition: border-color 0.15s;
+  }
+  .field-textarea:focus { border-color: var(--color-prompt); }
+  .art-textarea { font-size: 0.6rem; line-height: 1.2; white-space: pre; overflow-x: auto; }
+
+  .toggle-label { display: flex; align-items: center; gap: 0.4rem; cursor: pointer; font-size: 0.75rem; color: var(--color-muted); }
+  .toggle-check { accent-color: var(--color-prompt); width: 0.9rem; height: 0.9rem; cursor: pointer; }
+  .toggle-text { user-select: none; }
+
+  .btn-primary {
+    background: var(--color-prompt); color: #0d0d0d; border: none;
+    padding: 0.45rem 1.2rem; font-family: var(--font-mono); font-size: 0.875rem;
+    font-weight: 600; cursor: pointer; transition: opacity 0.15s;
+  }
+  .btn-primary:hover { opacity: 0.85; }
+  .btn-secondary {
+    background: transparent; color: var(--color-muted); border: 1px solid var(--color-border);
+    padding: 0.45rem 1.2rem; font-family: var(--font-mono); font-size: 0.875rem;
+    cursor: pointer; transition: border-color 0.15s, color 0.15s;
+  }
+  .btn-secondary:hover { border-color: var(--color-muted); color: var(--color-text); }
+  .btn-add {
+    background: transparent; color: var(--color-accent); border: 1px dashed var(--color-border);
+    padding: 0.3rem 0.8rem; font-family: var(--font-mono); font-size: 0.8rem;
+    cursor: pointer; margin-top: 0.5rem; transition: border-color 0.15s;
+  }
+  .btn-add:hover { border-color: var(--color-accent); }
+  .btn-remove {
+    background: transparent; color: var(--color-muted); border: none;
+    font-family: var(--font-mono); font-size: 0.875rem; cursor: pointer;
+    padding: 0.2rem 0.4rem; flex-shrink: 0; transition: color 0.15s;
+  }
+  .btn-remove:hover { color: var(--color-error); }
+</style>

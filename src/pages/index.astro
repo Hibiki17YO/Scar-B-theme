@@ -1,0 +1,73 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import Terminal from '../components/Terminal.astro';
+import { getCollection } from 'astro:content';
+import { readFile } from 'node:fs/promises';
+import { join } from 'node:path';
+import { defaultConfig } from '../config/terminal.config';
+
+const allPosts = await getCollection('posts', ({ data }) => !data.draft);
+allPosts.sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf());
+
+const postsForTerminal = allPosts.map(post => {
+  // Use UTC — "YYYY-MM-DD" in frontmatter is parsed as UTC midnight
+  const d = post.data.date;
+  const pad = (n: number) => String(n).padStart(2, '0');
+  const dateStr = `${d.getUTCFullYear()}-${pad(d.getUTCMonth()+1)}-${pad(d.getUTCDate())} ${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}`;
+  return {
+    slug:        post.id,
+    title:       post.data.title,
+    date:        dateStr,
+    description: post.data.description,
+    tags:        post.data.tags ?? [],
+  };
+});
+
+// ── Site stats ────────────────────────────────────────────────────────────────
+
+const POSTS_DIR = join(process.cwd(), 'src', 'content', 'posts');
+
+let totalWords = 0;
+let lastUpdateTs = 0;
+
+for (const post of allPosts) {
+  try {
+    const raw = await readFile(join(POSTS_DIR, `${post.id}.md`), 'utf-8');
+    const body = raw.replace(/^---[\s\S]*?---\r?\n/, '');
+    const cjk   = (body.match(/[一-鿿぀-ヿ]/g) ?? []).length;
+    const words  = (body.match(/[a-zA-Z0-9]+/g) ?? []).length;
+    totalWords  += cjk + words;
+  } catch { /* skip unreadable */ }
+  const ts = post.data.date.valueOf();
+  if (ts > lastUpdateTs) lastUpdateTs = ts;
+}
+
+const lastUpdateDate = lastUpdateTs > 0
+  ? new Date(lastUpdateTs).toISOString().slice(0, 10)
+  : '';
+
+const siteStats = {
+  postCount:  allPosts.length,
+  wordCount:  totalWords,
+  lastUpdate: lastUpdateDate,
+};
+
+// ── Load runtime config from user.config.json ────────────────────────────────
+
+let runtimeConfig = { ...defaultConfig };
+try {
+  const CONFIG_PATH = join(process.cwd(), 'src', 'config', 'user.config.json');
+  const raw = await readFile(CONFIG_PATH, 'utf-8');
+  const user = JSON.parse(raw);
+  runtimeConfig = {
+    ...defaultConfig,
+    ...user,
+    whoami: { ...defaultConfig.whoami, ...(user.whoami ?? {}) },
+    builtinCommands: user.builtinCommands ?? defaultConfig.builtinCommands,
+  };
+} catch { /* use defaults */ }
+---
+
+<BaseLayout title="visitor@hibiki:~$" description="hibiki's terminal-style personal blog">
+  <Terminal posts={postsForTerminal} siteStats={siteStats} config={runtimeConfig} />
+</BaseLayout>

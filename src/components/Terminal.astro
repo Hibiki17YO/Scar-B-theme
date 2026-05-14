@@ -1,0 +1,620 @@
+---
+import { defaultConfig } from '../config/terminal.config';
+import type { TerminalConfig } from '../config/terminal.config';
+
+interface PostData {
+  slug: string;
+  title: string;
+  date: string;
+  description: string;
+  tags: string[];
+}
+
+interface SiteStats {
+  postCount: number;
+  wordCount: number;
+  lastUpdate: string;
+}
+
+interface Props {
+  posts: PostData[];
+  siteStats: SiteStats;
+  config?: TerminalConfig;
+}
+
+const { posts, siteStats, config = defaultConfig } = Astro.props;
+const postsJson = JSON.stringify(posts);
+const configJson = JSON.stringify(config);
+const statsJson  = JSON.stringify(siteStats);
+---
+
+<div class="terminal-center-wrapper" style="display: flex; justify-content: center; width: 100%;">
+  <div
+    id="terminal-window"
+    class="responsive-terminal"
+    style="min-height: calc(100vh - 1.2rem);
+           border: 1px solid var(--color-border);
+           display: flex;
+           flex-direction: column;
+           cursor: text;
+           background: var(--color-terminal);
+           box-shadow: 0 30px 60px rgba(0,0,0,0.5);
+           position: relative;"
+  >
+    <!-- 标题栏 -->
+    <div
+      style="background: #1a1a1a; border-bottom: 1px solid var(--color-border); padding: 0.5rem 1rem; display: flex; align-items: center;"
+    >
+      <span id="title-bar-prompt" style="color: var(--color-muted); font-size: 14px; font-family: var(--font-mono); opacity: 0.8; flex-shrink: 0;"></span>
+      <span id="title-bar-icp" style="margin-left: auto; color: var(--color-muted); font-size: 14px; font-family: var(--font-mono); opacity: 0.6; flex-shrink: 0; display: none;"></span>
+    </div>
+
+    <div id="terminal-content-area" style="flex: 1; display: flex; flex-direction: column; overflow-y: auto;">
+      <div id="terminal-body" style="padding: 2rem;">
+        <div id="terminal-output" class="font-mono">
+          <pre
+            id="dot-art"
+            class="select-none"
+            style="color: var(--color-muted); overflow-x: auto; margin-bottom: 1.5rem; line-height: 1.2; font-size: 0.6rem;"
+            aria-hidden="true"
+          ></pre>
+
+          <div id="neofetch-prompt" class="font-mono mb-1"></div>
+
+          <pre
+            id="banner-art"
+            class="select-none"
+            style="color: var(--color-banner); overflow-x: auto; margin-bottom: 1rem; line-height: 1.2;"
+            aria-hidden="true"
+          ></pre>
+
+          <div id="site-info-lines" class="font-mono" style="margin-bottom: 1rem;"></div>
+
+          <p class="mb-6" style="color: var(--color-muted);">
+            Type <span style="color: var(--color-cmd);">help</span> to see available commands.
+          </p>
+        </div>
+
+        <!-- 输入行 -->
+        <div
+          id="terminal-input-line"
+          class="flex items-center gap-2 font-mono"
+          style="margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid rgba(255,255,255,0.05);"
+        >
+          <span
+            id="terminal-prompt"
+            class="shrink-0 select-none"
+            style="color: var(--color-prompt);"
+          ></span>
+          <input
+            id="terminal-input"
+            type="text"
+            autocomplete="off"
+            autocorrect="off"
+            autocapitalize="off"
+            spellcheck="false"
+            class="flex-1 bg-transparent outline-none border-none"
+            style="color: var(--color-cmd); font-family: var(--font-mono); font-size: 1rem; caret-color: var(--color-cursor);"
+            aria-label="Terminal command input"
+          />
+          <span id="fake-cursor" class="cursor-blink"></span>
+        </div>
+      </div>
+    </div>
+    <div style="position: absolute; bottom: 0.6rem; right: 1rem; font-family: var(--font-mono); font-size: 14px; color: var(--color-muted); opacity: 0.4; pointer-events: none; user-select: none; text-align: right; line-height: 1.6;">
+      <div>Powered by <a href="https://astro.build/" target="_blank" rel="noopener noreferrer" style="color: inherit; text-decoration: underline; pointer-events: auto;">Astro</a> &amp; Scar-B theme</div>
+      <div id="title-bar-copyright" style="display: none;"></div>
+    </div>
+  </div>
+</div>
+
+<div id="posts-data" data-posts={postsJson} hidden></div>
+<div id="terminal-config" data-config={configJson} hidden></div>
+<div id="site-stats" data-stats={statsJson} hidden></div>
+
+<script>
+  import type { TerminalConfig } from '../config/terminal.config';
+
+  interface PostData {
+    slug: string;
+    title: string;
+    date: string;
+    description: string;
+    tags: string[];
+  }
+
+  type LineType = 'text' | 'success' | 'error' | 'muted' | 'cmd' | 'accent' | 'link' | 'link-dark';
+
+  interface OutputLine {
+    type: LineType;
+    content: string;
+    href?: string;
+    prefix?: string;
+  }
+
+  // ── Config loading ───────────────────────────────────────────────────────────
+
+  function loadConfig(): TerminalConfig {
+    const el = document.getElementById('terminal-config');
+    return JSON.parse(el?.dataset.config ?? '{}') as TerminalConfig;
+  }
+
+  const config = loadConfig();
+
+  // ── Posts data ───────────────────────────────────────────────────────────────
+
+  const postsDataEl = document.getElementById('posts-data');
+  const posts: PostData[] = postsDataEl
+    ? JSON.parse(postsDataEl.dataset.posts ?? '[]')
+    : [];
+
+  // ── DOM refs ─────────────────────────────────────────────────────────────────
+
+  const terminalWindow      = document.getElementById('terminal-window')!;
+  const terminalContentArea = document.getElementById('terminal-content-area')!;
+  const outputEl            = document.getElementById('terminal-output')!;
+  const inputEl             = document.getElementById('terminal-input') as HTMLInputElement;
+  const fakeCursor          = document.getElementById('fake-cursor')!;
+
+  // ── Populate config-driven DOM elements ──────────────────────────────────────
+
+  if (config.showDotArt) {
+    document.getElementById('dot-art')!.textContent = config.dotArt;
+  } else {
+    document.getElementById('dot-art')!.style.display = 'none';
+  }
+
+  if (config.showBanner) {
+    document.getElementById('banner-art')!.textContent = config.bannerArt;
+    document.getElementById('neofetch-prompt')!.innerHTML =
+      `<span style="color:var(--color-prompt)">${config.username}@${config.hostname}:~$</span>` +
+      `<span style="color:var(--color-cmd)"> neofetch</span>`;
+  } else {
+    document.getElementById('banner-art')!.style.display = 'none';
+    document.getElementById('neofetch-prompt')!.style.display = 'none';
+  }
+
+  document.getElementById('title-bar-prompt')!.textContent =
+    `${config.username}@${config.hostname} — bash`;
+  document.getElementById('terminal-prompt')!.textContent =
+    `${config.username}@${config.hostname}:~$`;
+
+  if (config.copyrightText) {
+    const cpEl = document.getElementById('title-bar-copyright')!;
+    cpEl.textContent = config.copyrightText;
+    cpEl.style.display = 'block';
+  }
+
+  if (config.icpNumber) {
+    const icpEl = document.getElementById('title-bar-icp')!;
+    icpEl.innerHTML = `<a href="https://beian.miit.gov.cn/" target="_blank" rel="noopener noreferrer" style="color:inherit;text-decoration:none;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity=''">` +
+      config.icpNumber.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') +
+      `</a>`;
+    icpEl.style.display = '';
+  }
+
+  {
+    const siteInfoEl = document.getElementById('site-info-lines')!;
+    if (config.showSiteInfo && config.siteInfoTemplate) {
+      const statsEl = document.getElementById('site-stats');
+      const stats = statsEl ? JSON.parse(statsEl.dataset.stats ?? '{}') : {};
+
+      // Compute uptime from siteStartDate
+      let uptime = '';
+      if (config.siteStartDate) {
+        const start = new Date(config.siteStartDate).valueOf();
+        const now   = Date.now();
+        const days  = Math.floor((now - start) / 86400000);
+        uptime = String(days);
+      }
+
+      const text = config.siteInfoTemplate
+        .replace(/\{uptime\}/g,      uptime || '—')
+        .replace(/\{posts\}/g,       String(stats.postCount  ?? '—'))
+        .replace(/\{words\}/g,       String(stats.wordCount  ?? '—'))
+        .replace(/\{last_update\}/g, stats.lastUpdate || '—');
+
+      siteInfoEl.style.cssText = 'font-size:0.875rem;line-height:1.7;color:var(--color-muted);margin-bottom:1rem;';
+      siteInfoEl.innerHTML = text.split('\n').map(l =>
+        `<div>${l.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') || '&nbsp;'}</div>`
+      ).join('');
+    } else {
+      siteInfoEl.style.display = 'none';
+    }
+  }
+
+  // ── Terminal state ────────────────────────────────────────────────────────────
+
+  const initialOutputHTML = outputEl.innerHTML;
+
+  const history: string[] = [];
+  let historyIndex = -1;
+  let currentInput = '';
+  let awaitingPassword = false;
+
+  const COLOR: Record<LineType, string> = {
+    text:        'var(--color-text)',
+    success:     'var(--color-success)',
+    error:       'var(--color-error)',
+    muted:       'var(--color-muted)',
+    cmd:         'var(--color-cmd)',
+    accent:      'var(--color-accent)',
+    link:        'var(--color-accent)',
+    'link-dark': 'var(--color-muted)',
+  };
+
+  function escapeHtml(s: string): string {
+    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  function renderLine(line: OutputLine): HTMLElement {
+    const el = document.createElement('div');
+    el.style.cssText = `color:${COLOR[line.type]};font-family:var(--font-mono);font-size:1rem;line-height:1.6;white-space:pre-wrap;opacity:0;transform:translateY(5px);transition:opacity 0.3s ease, transform 0.3s ease;`;
+
+    if ((line.type === 'link' || line.type === 'link-dark') && line.href) {
+      const linkColor = line.type === 'link-dark' ? 'var(--color-whoami-link)' : 'var(--color-accent)';
+      const linkHover = line.type === 'link-dark' ? '#c0392b' : 'var(--color-link-hover)';
+      if (line.prefix) {
+        const pre = document.createElement('span');
+        pre.style.color = 'var(--color-muted)';
+        pre.textContent = line.prefix;
+        el.appendChild(pre);
+      }
+      const a = document.createElement('a');
+      a.href = line.href;
+      a.textContent = line.content;
+      a.style.cssText = `color:${linkColor};text-decoration:none;transition:color 0.15s;`;
+      a.addEventListener('mouseenter', () => { a.style.color = linkHover; a.style.textDecoration = 'underline'; });
+      a.addEventListener('mouseleave', () => { a.style.color = linkColor; a.style.textDecoration = 'none'; });
+      el.appendChild(a);
+    } else {
+      el.textContent = (line.prefix ?? '') + line.content;
+    }
+    return el;
+  }
+
+  async function appendLines(lines: OutputLine[]): Promise<void> {
+    for (const line of lines) {
+      const el = renderLine(line);
+      outputEl.appendChild(el);
+      requestAnimationFrame(() => {
+        el.style.opacity = '1';
+        el.style.transform = 'translateY(0)';
+      });
+      scrollToBottom();
+      if (line.content.trim() !== '') {
+        await new Promise(r => setTimeout(r, 50));
+      }
+    }
+  }
+
+  function echoCommand(cmd: string): void {
+    const el = document.createElement('div');
+    el.style.cssText = `font-family:var(--font-mono);font-size:1rem;line-height:1.6;`;
+    el.innerHTML = `<span style="color:var(--color-prompt)">${config.username}@${config.hostname}:~$</span> <span style="color:var(--color-cmd)">${escapeHtml(cmd)}</span>`;
+    outputEl.appendChild(el);
+  }
+
+  function scrollToBottom(): void {
+    requestAnimationFrame(() => {
+      terminalContentArea.scrollTop = terminalContentArea.scrollHeight;
+      window.scrollTo(0, document.body.scrollHeight);
+    });
+  }
+
+  // ── SHA-256 helper ───────────────────────────────────────────────────────────
+
+  async function sha256hex(s: string): Promise<string> {
+    const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s));
+    return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+  }
+
+  // ── Admin login flow ─────────────────────────────────────────────────────────
+
+  async function handleLogin(passHash: string, sessionKey: string, targetUrl: string): Promise<void> {
+    if (!passHash) {
+      sessionStorage.setItem(sessionKey, '1');
+      window.location.href = targetUrl;
+      return;
+    }
+
+    // Build an inline "password: [input]" row inside the output area
+    const passLine = document.createElement('div');
+    passLine.style.cssText = 'display:flex;align-items:center;gap:0.4rem;font-family:var(--font-mono);font-size:1rem;line-height:1.6;';
+    const passLabel = document.createElement('span');
+    passLabel.style.color = 'var(--color-muted)';
+    passLabel.textContent = 'password:';
+    passLine.appendChild(passLabel);
+    passLine.appendChild(inputEl);   // move input into output area
+    outputEl.appendChild(passLine);
+
+    // Hide the now-empty bottom input line
+    const inputLine = document.getElementById('terminal-input-line')!;
+    inputLine.style.display = 'none';
+
+    inputEl.type = 'password';
+    inputEl.focus();
+    awaitingPassword = true;
+    scrollToBottom();
+
+    await new Promise<void>(resolve => {
+      const onKey = async (e: KeyboardEvent) => {
+        if (e.key !== 'Enter') return;
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        const val = inputEl.value;
+        inputEl.value = '';
+        inputEl.type = 'text';
+        awaitingPassword = false;
+        inputEl.removeEventListener('keydown', onKey);
+
+        const hash = await sha256hex(val);
+        if (hash === passHash) {
+          sessionStorage.setItem(sessionKey, '1');
+          window.location.href = targetUrl;
+        } else {
+          // 仅失败时恢复提示符行
+          inputLine.insertBefore(inputEl, fakeCursor);
+          inputLine.style.display = '';
+          passLine.remove();
+          await appendLines([{ type: 'error', content: 'access denied' }]);
+        }
+        resolve();
+      };
+      inputEl.addEventListener('keydown', onKey);
+    });
+  }
+
+  // ── Commands ──────────────────────────────────────────────────────────────────
+
+  // Build a lookup from builtin id → effective config
+  const builtinCfg = Object.fromEntries(
+    (config.builtinCommands ?? []).map(b => [b.id, b])
+  );
+  function bcfg(id: string, fallbackName: string, fallbackDesc: string) {
+    return builtinCfg[id] ?? { id, name: fallbackName, description: fallbackDesc, enabled: true };
+  }
+
+  const COMMANDS: Record<string, () => OutputLine[]> = {};
+
+  // help (always registered under "help")
+  COMMANDS['help'] = () => {
+    const lines: OutputLine[] = [
+      { type: 'muted',   content: '──────────────────────────────────────' },
+      { type: 'success', content: 'Available commands:' },
+      { type: 'text',    content: '' },
+    ];
+    const builtinOrder = ['name', 'whoami', 'blog', 'ls', 'projects'];
+    for (const id of builtinOrder) {
+      const b = builtinCfg[id];
+      if (!b || !b.enabled) continue;
+      lines.push({ type: 'text', content: `  ${b.name.padEnd(10)}${b.description}` });
+    }
+    lines.push({ type: 'text', content: `  ${'clear'.padEnd(10)}— clear terminal` });
+    lines.push({ type: 'text', content: `  ${'help'.padEnd(10)}— show this message` });
+    for (const cc of config.customCommands) {
+      if (cc.enabled === false) continue;
+      lines.push({ type: 'text', content: `  ${cc.name.padEnd(10)}${cc.description || '— custom'}` });
+    }
+    lines.push({ type: 'text',  content: '' });
+    lines.push({ type: 'muted', content: 'Tips: ↑↓ arrows for history · Tab to autocomplete' });
+    lines.push({ type: 'muted', content: '──────────────────────────────────────' });
+    return lines;
+  };
+
+  // name
+  {
+    const b = bcfg('name', 'name', '— how to refer to the author');
+    if (b.enabled) {
+      COMMANDS[b.name.toLowerCase()] = () =>
+        config.nameLines.map(line => ({ type: 'text' as const, content: line }));
+    }
+  }
+
+  // whoami
+  {
+    const b = bcfg('whoami', 'whoami', '— about the author');
+    if (b.enabled) {
+      COMMANDS[b.name.toLowerCase()] = () => {
+        const lines: OutputLine[] = [
+          { type: 'text',    content: '' },
+          { type: 'success', content: `> ${config.whoami.displayName}` },
+          { type: 'text',    content: '' },
+          ...config.whoami.bio.map(line => ({ type: 'text' as const, content: line })),
+          { type: 'text',    content: '' },
+        ];
+        const links = config.whoami.links ?? [];
+        links.forEach((link, i) => {
+          const isLast = i === links.length - 1;
+          const prefix = `  ${isLast ? '└─' : '├─'} ${link.label.padEnd(10)}: `;
+          lines.push({ type: 'link-dark', content: link.url, href: link.url, prefix });
+        });
+        lines.push({ type: 'text', content: '' });
+        return lines;
+      };
+    }
+  }
+
+  // blog
+  {
+    const b = bcfg('blog', 'blog', '— list recent posts');
+    if (b.enabled) {
+      const blogHandler = () => {
+        if (posts.length === 0) return [{ type: 'muted' as const, content: 'No posts found.' }];
+        const lines: OutputLine[] = [
+          { type: 'text',    content: '' },
+          { type: 'success', content: `> ${posts.length} post(s) found` },
+          { type: 'text',    content: '' },
+        ];
+        for (const post of posts) {
+          lines.push({ type: 'muted',  content: `  [${post.date}]` });
+          lines.push({ type: 'link', content: post.title, href: `/blog/${post.slug}`, prefix: '  ' });
+          const desc = post.description.length > 60 ? post.description.slice(0, 60) + '…' : post.description;
+          lines.push({ type: 'muted',  content: `  └─ ${desc}` });
+          if (post.tags.length > 0) {
+            lines.push({ type: 'accent', content: `     ${post.tags.map(t => `#${t}`).join(' ')}` });
+          }
+          lines.push({ type: 'text', content: '' });
+        }
+        lines.push({ type: 'link', content: '→ view full post list', href: '/blog', prefix: '  ' });
+        lines.push({ type: 'text', content: '' });
+        return lines;
+      };
+      COMMANDS[b.name.toLowerCase()] = blogHandler;
+
+      // ls: only register if blog is enabled, using ls's own name/enabled
+      const ls = bcfg('ls', 'ls', '— alias for blog');
+      if (ls.enabled) {
+        COMMANDS[ls.name.toLowerCase()] = blogHandler;
+      }
+    }
+  }
+
+  // projects
+  {
+    const b = bcfg('projects', 'projects', '— showcase projects');
+    if (b.enabled) {
+      COMMANDS[b.name.toLowerCase()] = () => {
+        const lines: OutputLine[] = [
+          { type: 'text',    content: '' },
+          { type: 'success', content: '> projects' },
+          { type: 'text',    content: '' },
+        ];
+        config.projects.forEach((p, i) => {
+          const isLast = i === config.projects.length - 1;
+          lines.push({ type: 'text',  content: `  ┌─ ${p.name}` });
+          lines.push({ type: 'muted', content: `  ${isLast ? '└─' : '│ '} ${p.description}` });
+        });
+        if (config.projects.length === 0) {
+          lines.push({ type: 'muted', content: '  no projects yet.' });
+        }
+        lines.push({ type: 'text', content: '' });
+        return lines;
+      };
+    }
+  }
+
+  // Register custom commands from config
+  for (const cc of config.customCommands) {
+    if (cc.enabled === false) continue;
+    const name = cc.name.toLowerCase();
+    if (!COMMANDS[name]) {
+      COMMANDS[name] = () => cc.output.split('\n').map(line => ({ type: 'text' as const, content: line }));
+    }
+  }
+
+  // ── Command execution ─────────────────────────────────────────────────────────
+
+  async function executeCommand(rawInput: string): Promise<void> {
+    const cmd = rawInput.trim().toLowerCase();
+    if (!cmd) return;
+
+    // Admin command: echo normally then prompt for password
+    if (cmd === config.adminCommand.toLowerCase()) {
+      echoCommand(rawInput.trim());
+      await handleLogin(config.adminPassHash, 'admin_auth', '/admin');
+      return;
+    }
+
+    // Blog admin command
+    if (cmd === config.blogCommand.toLowerCase()) {
+      echoCommand(rawInput.trim());
+      await handleLogin(config.blogPassHash, 'blog_auth', '/blog-admin');
+      return;
+    }
+
+    echoCommand(rawInput.trim());
+
+    if (cmd === 'clear') {
+      outputEl.innerHTML = initialOutputHTML;
+      return;
+    }
+    const handler = COMMANDS[cmd];
+    if (handler) {
+      await appendLines(handler());
+    } else {
+      await appendLines([
+        { type: 'error', content: `command not found: ${cmd}` },
+        { type: 'muted', content: "type 'help' for available commands" },
+      ]);
+    }
+  }
+
+  // ── Event listeners ───────────────────────────────────────────────────────────
+
+  terminalWindow.addEventListener('click', () => inputEl.focus());
+
+  inputEl.addEventListener('focus', () => { fakeCursor.style.display = 'none'; });
+  inputEl.addEventListener('blur',  () => { fakeCursor.style.display = 'inline-block'; });
+
+  inputEl.addEventListener('keydown', async (e: KeyboardEvent) => {
+    if (awaitingPassword) return;
+    if (e.key === 'Enter') {
+      const value = inputEl.value;
+      if (value.trim() && value.trim() !== history[0]) {
+        history.unshift(value.trim());
+        if (history.length > 50) history.pop();
+      }
+      historyIndex = -1;
+      currentInput = '';
+      inputEl.value = '';
+      await executeCommand(value);
+
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      if (!history.length) return;
+      if (historyIndex === -1) currentInput = inputEl.value;
+      historyIndex = Math.min(historyIndex + 1, history.length - 1);
+      inputEl.value = history[historyIndex];
+      setTimeout(() => { inputEl.selectionStart = inputEl.selectionEnd = inputEl.value.length; }, 0);
+
+    } else if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      if (historyIndex === -1) return;
+      historyIndex -= 1;
+      inputEl.value = historyIndex === -1 ? currentInput : history[historyIndex];
+
+    } else if (e.key === 'Tab') {
+      e.preventDefault();
+      const partial = inputEl.value.toLowerCase().trim();
+      if (!partial) return;
+      // Admin command is intentionally excluded from Tab completion
+      const allCmds = [...Object.keys(COMMANDS), 'clear'];
+      const matches = allCmds.filter(c => c.startsWith(partial));
+      if (matches.length === 1) {
+        inputEl.value = matches[0];
+      } else if (matches.length > 1) {
+        echoCommand(inputEl.value);
+        appendLines([{ type: 'muted', content: matches.join('   ') }]);
+      }
+
+    } else if (e.key === 'l' && e.ctrlKey) {
+      e.preventDefault();
+      outputEl.innerHTML = '';
+    }
+  });
+
+  window.addEventListener('load', () => {
+    inputEl.focus();
+    scrollToBottom();
+  });
+</script>
+
+<style>
+  #terminal-input { -webkit-tap-highlight-color: transparent; }
+  #terminal-content-area { scroll-behavior: smooth; }
+  #terminal-content-area::-webkit-scrollbar { width: 4px; }
+  #terminal-content-area::-webkit-scrollbar-track { background: transparent; }
+  #terminal-content-area::-webkit-scrollbar-thumb { background: #333; border-radius: 2px; }
+
+  .responsive-terminal {
+    width: 100%;
+  }
+
+  @media (min-width: 1024px) {
+    .responsive-terminal {
+      width: 70%;
+      max-width: 1200px;
+    }
+  }
+</style>
