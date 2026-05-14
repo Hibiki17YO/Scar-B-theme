@@ -2,6 +2,8 @@
 
 A terminal-style personal blog theme built with [Astro 6](https://astro.build/) and Tailwind CSS v4.
 
+The name comes from two works I love: *Girls' Frontline* (Scar-L & Scar-H) and *Gunbuster*. The red accent is partly inspired by Vanguard Sound's album *Scarlet* and partly by the visual style of Sukeban Games' official website. No deeper meaning — just things I like.
+
 [中文说明](#中文说明)
 
 ---
@@ -21,17 +23,17 @@ A terminal-style personal blog theme built with [Astro 6](https://astro.build/) 
 
 ## Stack
 
-| Layer | Technology |
-|---|---|
-| Framework | Astro 6 (server mode) |
-| Styling | Tailwind CSS v4 |
-| Adapter | `@astrojs/node` (standalone) |
-| Content | Astro Content Collections |
+| Layer     | Technology                     |
+| --------- | ------------------------------ |
+| Framework | Astro 6 (server mode)          |
+| Styling   | Tailwind CSS v4                |
+| Adapter   | `@astrojs/node` (standalone) |
+| Content   | Astro Content Collections      |
 
 ## Quick Start
 
 ```bash
-git clone https://github.com/Hibiki17YO/Scar-B.git
+git clone https://github.com/Hibiki17YO/Scar-B-theme.git
 cd Scar-B
 npm install
 npm run dev
@@ -41,24 +43,24 @@ Open `http://localhost:4321`. Type `help` in the terminal to see available comma
 
 ## Configuration
 
-Default config lives in `src/config/terminal.config.ts` (`defaultConfig`).  
+Default config lives in `src/config/terminal.config.ts` (`defaultConfig`).
 Runtime overrides are stored in `src/config/user.config.json` and take precedence — this file is written by the admin panel and should not be committed.
 
-To configure via the UI, start the dev server and type `sudo admin` in the terminal.  
+To configure via the UI, start the dev server and type `sudo admin` in the terminal.
 **Default admin password is empty** — set one in the admin panel before deploying.
 
 ### Key fields
 
-| Field | Description |
-|---|---|
-| `username` / `hostname` | Shown in the terminal prompt |
-| `bannerArt` | ASCII art displayed on load |
-| `whoami` | Author info shown by the `whoami` command |
-| `adminCommand` / `adminPassHash` | Admin panel access (hash only, never plaintext) |
-| `blogCommand` / `blogPassHash` | Blog editor access |
-| `showSiteInfo` / `siteInfoTemplate` | Info block below the banner |
-| `icpNumber` | ICP filing number, links to beian.miit.gov.cn |
-| `copyrightText` | Centered text in the terminal title bar |
+| Field                                   | Description                                     |
+| --------------------------------------- | ----------------------------------------------- |
+| `username` / `hostname`             | Shown in the terminal prompt                    |
+| `bannerArt`                           | ASCII art displayed on load                     |
+| `whoami`                              | Author info shown by the `whoami` command     |
+| `adminCommand` / `adminPassHash`    | Admin panel access (hash only, never plaintext) |
+| `blogCommand` / `blogPassHash`      | Blog editor access                              |
+| `showSiteInfo` / `siteInfoTemplate` | Info block below the banner                     |
+| `icpNumber`                           | ICP filing number, links to beian.miit.gov.cn   |
+| `copyrightText`                       | Centered text in the terminal title bar         |
 
 ## Project Structure
 
@@ -111,6 +113,8 @@ MIT
 
 **Scar-B** 是一个基于 [Astro 6](https://astro.build/) 和 Tailwind CSS v4 构建的终端风格个人博客主题。
 
+这个名字来自于我爱的两部作品，少女前线（Scar-L & Scar-H）和飞跃巅峰（GunBuster），选择红色为基色调的一部分原因来自Vanguard Sound的专辑Scarlet，另一部分是想要模仿Sukeban Games官方网页的视觉风格。没有什么特殊含义，仅仅是我喜欢。
+
 ### 特性
 
 - 终端交互界面，支持命令输入、历史记录、Tab 自动补全
@@ -127,7 +131,7 @@ MIT
 ### 快速开始
 
 ```bash
-git clone https://github.com/Hibiki17YO/Scar-B.git
+git clone https://github.com/Hibiki17YO/Scar-B-theme.git
 cd Scar-B
 npm install
 npm run dev
@@ -137,24 +141,24 @@ npm run dev
 
 ### 配置
 
-默认配置位于 `src/config/terminal.config.ts` 的 `defaultConfig`。  
-运行时覆盖存储在 `src/config/user.config.json`（由管理面板写入，优先级更高，不应提交到 git）。
+默认配置位于 `src/config/terminal.config.ts` 的 `defaultConfig`。
+运行时覆盖存储在 `src/config/user.config.json`。
 
-启动开发服务器后，在终端输入 `sudo admin` 进入管理面板。  
+启动开发服务器后，在终端输入 `sudo admin` 进入管理面板。
 **默认管理密码为空**，部署前请在管理面板中设置密码。
 
 ### 主要配置项
 
-| 字段 | 说明 |
-|---|---|
-| `username` / `hostname` | 终端提示符显示内容 |
-| `bannerArt` | 加载时显示的 ASCII Art |
-| `whoami` | `whoami` 指令输出的作者信息 |
-| `adminCommand` / `adminPassHash` | 管理面板访问控制（仅存哈希） |
-| `blogCommand` / `blogPassHash` | 博客编辑器访问控制 |
-| `showSiteInfo` / `siteInfoTemplate` | Banner 下方信息块 |
-| `icpNumber` | ICP 备案号，点击跳转 beian.miit.gov.cn |
-| `copyrightText` | 标题栏居中版权文字 |
+| 字段                                    | 说明                          |
+| --------------------------------------- | ----------------------------- |
+| `username` / `hostname`             | 终端提示符显示内容            |
+| `bannerArt`                           | 加载时显示的 ASCII Art        |
+| `whoami`                              | `whoami` 指令输出的作者信息 |
+| `adminCommand` / `adminPassHash`    | 管理面板访问控制（仅存哈希）  |
+| `blogCommand` / `blogPassHash`      | 博客编辑器访问控制            |
+| `showSiteInfo` / `siteInfoTemplate` | Banner 下方信息块             |
+| `icpNumber`                           | ICP 备案号                    |
+| `copyrightText`                       | 标题栏居中版权文字            |
 
 ### 部署
 
