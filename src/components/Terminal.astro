@@ -28,7 +28,7 @@ const configJson = JSON.stringify(config);
 const statsJson  = JSON.stringify(siteStats);
 ---
 
-<div class="terminal-center-wrapper" style="display: flex; justify-content: center; width: 100%;">
+<div class="terminal-center-wrapper" style="display: flex; justify-content: center; width: 100%; max-width: 100%; overflow: hidden;">
   <div
     id="terminal-window"
     class="responsive-terminal"
@@ -39,18 +39,22 @@ const statsJson  = JSON.stringify(siteStats);
            cursor: text;
            background: var(--color-terminal);
            box-shadow: 0 30px 60px rgba(0,0,0,0.5);
-           position: relative;"
+           position: relative;
+           overflow: hidden;"
   >
     <!-- 标题栏 -->
-    <div
-      style="background: #1a1a1a; border-bottom: 1px solid var(--color-border); padding: 0.5rem 1rem; display: flex; align-items: center;"
-    >
-      <span id="title-bar-prompt" style="color: var(--color-muted); font-size: 14px; font-family: var(--font-mono); opacity: 0.8; flex-shrink: 0;"></span>
-      <span id="title-bar-icp" style="margin-left: auto; color: var(--color-muted); font-size: 14px; font-family: var(--font-mono); opacity: 0.6; flex-shrink: 0; display: none;"></span>
+    <div id="title-bar" style="background: #1a1a1a; border-bottom: 1px solid var(--color-border); padding: 0.5rem 1rem; flex-shrink: 0;">
+      <div style="display: flex; align-items: center;">
+        <span id="title-bar-prompt" style="color: var(--color-muted); font-size: 0.8rem; font-family: var(--font-mono); opacity: 0.8;"></span>
+        <span id="title-bar-icp-inline" style="margin-left: auto; color: var(--color-muted); font-size: 0.8rem; font-family: var(--font-mono); opacity: 0.6; flex-shrink: 0; display: none;"></span>
+      </div>
+      <div id="title-bar-icp-mobile" style="display: none; margin-top: 0.2rem;">
+        <span id="title-bar-icp" style="color: var(--color-muted); font-size: 0.75rem; font-family: var(--font-mono); opacity: 0.6;"></span>
+      </div>
     </div>
 
-    <div id="terminal-content-area" style="flex: 1; display: flex; flex-direction: column; overflow-y: auto;">
-      <div id="terminal-body" style="padding: 2rem;">
+    <div id="terminal-content-area" style="flex: 1; display: flex; flex-direction: column; overflow-y: auto; overflow-x: hidden;">
+      <div id="terminal-body" class="responsive-terminal-body" style="flex: 1;">
         <div id="terminal-output" class="font-mono">
           <pre
             id="dot-art"
@@ -78,8 +82,8 @@ const statsJson  = JSON.stringify(siteStats);
         <!-- 输入行 -->
         <div
           id="terminal-input-line"
-          class="flex items-center gap-2 font-mono"
-          style="margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid rgba(255,255,255,0.05);"
+          class="flex items-center gap-2 font-mono responsive-terminal-input-line"
+          style="border-top: 1px solid rgba(255,255,255,0.05);"
         >
           <span
             id="terminal-prompt"
@@ -94,16 +98,17 @@ const statsJson  = JSON.stringify(siteStats);
             autocapitalize="off"
             spellcheck="false"
             class="flex-1 bg-transparent outline-none border-none"
-            style="color: var(--color-cmd); font-family: var(--font-mono); font-size: 1rem; caret-color: var(--color-cursor);"
+            style="color: var(--color-cmd); font-family: var(--font-mono); font-size: var(--term-font-size,1rem); caret-color: var(--color-cursor);"
             aria-label="Terminal command input"
           />
           <span id="fake-cursor" class="cursor-blink"></span>
         </div>
       </div>
     </div>
-    <div style="position: absolute; bottom: 0.6rem; right: 1rem; font-family: var(--font-mono); font-size: 14px; color: var(--color-muted); pointer-events: none; user-select: none; text-align: right; line-height: 1.6;">
-      <div>Powered by <a href="https://astro.build/" target="_blank" rel="noopener noreferrer" style="color:var(--color-whoami-link);text-decoration:none;pointer-events:auto;">Astro</a> &amp; <a href="https://github.com/Hibiki17YO/Scar-B-theme" target="_blank" rel="noopener noreferrer" style="color:var(--color-whoami-link);text-decoration:none;pointer-events:auto;">Scar-B theme</a></div>
+    <!-- 底部信息栏：copyright + powered，始终在命令行输出之下 -->
+    <div id="terminal-footer" style="flex-shrink: 0; font-family: var(--font-mono); font-size: 0.75rem; color: var(--color-muted); text-align: center; padding: 0.5rem 1rem 0.6rem; line-height: 1.8; border-top: 1px solid rgba(255,255,255,0.04); pointer-events: none; user-select: none;">
       <div id="title-bar-copyright" style="display: none;"></div>
+      <div>Powered by <a href="https://astro.build/" target="_blank" rel="noopener noreferrer" style="color:var(--color-whoami-link);text-decoration:none;pointer-events:auto;">Astro</a> &amp; <a href="https://github.com/Hibiki17YO/Scar-B-theme" target="_blank" rel="noopener noreferrer" style="color:var(--color-whoami-link);text-decoration:none;pointer-events:auto;">Scar-B theme</a></div>
     </div>
   </div>
 </div>
@@ -130,6 +135,7 @@ const statsJson  = JSON.stringify(siteStats);
     content: string;
     href?: string;
     prefix?: string;
+    hangIndent?: string; // CSS padding-left for hanging indent (e.g. '3rem')
   }
 
   // ── Config loading ───────────────────────────────────────────────────────────
@@ -186,11 +192,18 @@ const statsJson  = JSON.stringify(siteStats);
   }
 
   if (config.icpNumber) {
-    const icpEl = document.getElementById('title-bar-icp')!;
-    icpEl.innerHTML = `<a href="https://beian.miit.gov.cn/" target="_blank" rel="noopener noreferrer" style="color:inherit;text-decoration:none;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity=''">` +
+    const icpHtml = `<a href="https://beian.miit.gov.cn/" target="_blank" rel="noopener noreferrer" style="color:inherit;text-decoration:none;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity=''">` +
       config.icpNumber.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') +
       `</a>`;
-    icpEl.style.display = '';
+    // inline version (desktop, right side of title bar)
+    const icpInline = document.getElementById('title-bar-icp-inline')!;
+    icpInline.innerHTML = icpHtml;
+    icpInline.style.display = '';
+    // mobile version (second line of title bar)
+    const icpEl = document.getElementById('title-bar-icp')!;
+    icpEl.innerHTML = icpHtml;
+    const icpMobileRow = document.getElementById('title-bar-icp-mobile')!;
+    icpMobileRow.style.display = '';
   }
 
   {
@@ -249,7 +262,10 @@ const statsJson  = JSON.stringify(siteStats);
 
   function renderLine(line: OutputLine): HTMLElement {
     const el = document.createElement('div');
-    el.style.cssText = `color:${COLOR[line.type]};font-family:var(--font-mono);font-size:1rem;line-height:1.6;white-space:pre-wrap;opacity:0;transform:translateY(5px);transition:opacity 0.3s ease, transform 0.3s ease;`;
+    const hangStyle = line.hangIndent
+      ? `padding-left:${line.hangIndent};text-indent:-${line.hangIndent};`
+      : '';
+    el.style.cssText = `color:${COLOR[line.type]};font-family:var(--font-mono);font-size:var(--term-font-size,1rem);line-height:1.6;white-space:pre-wrap;word-break:break-word;opacity:0;transform:translateY(5px);transition:opacity 0.3s ease, transform 0.3s ease;${hangStyle}`;
 
     if ((line.type === 'link' || line.type === 'link-dark') && line.href) {
       const linkColor = line.type === 'link-dark' ? 'var(--color-whoami-link)' : 'var(--color-accent)';
@@ -290,7 +306,7 @@ const statsJson  = JSON.stringify(siteStats);
 
   function echoCommand(cmd: string): void {
     const el = document.createElement('div');
-    el.style.cssText = `font-family:var(--font-mono);font-size:1rem;line-height:1.6;`;
+    el.style.cssText = `font-family:var(--font-mono);font-size:var(--term-font-size,1rem);line-height:1.6;`;
     el.innerHTML = `<span style="color:var(--color-prompt)">${config.username}@${config.hostname}:~$</span> <span style="color:var(--color-cmd)">${escapeHtml(cmd)}</span>`;
     outputEl.appendChild(el);
   }
@@ -320,7 +336,7 @@ const statsJson  = JSON.stringify(siteStats);
 
     // Build an inline "password: [input]" row inside the output area
     const passLine = document.createElement('div');
-    passLine.style.cssText = 'display:flex;align-items:center;gap:0.4rem;font-family:var(--font-mono);font-size:1rem;line-height:1.6;';
+    passLine.style.cssText = 'display:flex;align-items:center;gap:0.4rem;font-family:var(--font-mono);font-size:var(--term-font-size,1rem);line-height:1.6;';
     const passLabel = document.createElement('span');
     passLabel.style.color = 'var(--color-muted)';
     passLabel.textContent = 'password:';
@@ -388,13 +404,13 @@ const statsJson  = JSON.stringify(siteStats);
     for (const id of builtinOrder) {
       const b = builtinCfg[id];
       if (!b || !b.enabled) continue;
-      lines.push({ type: 'text', content: `  ${b.name.padEnd(10)}${b.description}` });
+      lines.push({ type: 'text', content: `  ${b.name.padEnd(10)}${b.description}`, hangIndent: '12ch' });
     }
-    lines.push({ type: 'text', content: `  ${'clear'.padEnd(10)}— clear terminal` });
-    lines.push({ type: 'text', content: `  ${'help'.padEnd(10)}— show this message` });
+    lines.push({ type: 'text', content: `  ${'clear'.padEnd(10)}— clear terminal`, hangIndent: '12ch' });
+    lines.push({ type: 'text', content: `  ${'help'.padEnd(10)}— show this message`, hangIndent: '12ch' });
     for (const cc of config.customCommands) {
       if (cc.enabled === false) continue;
-      lines.push({ type: 'text', content: `  ${cc.name.padEnd(10)}${cc.description || '— custom'}` });
+      lines.push({ type: 'text', content: `  ${cc.name.padEnd(10)}${cc.description || '— custom'}`, hangIndent: '12ch' });
     }
     lines.push({ type: 'text',  content: '' });
     lines.push({ type: 'muted', content: 'Tips: ↑↓ arrows for history · Tab to autocomplete' });
@@ -611,10 +627,44 @@ const statsJson  = JSON.stringify(siteStats);
     width: 100%;
   }
 
+  .responsive-terminal-body {
+    padding: 1rem;
+  }
+
+  .responsive-terminal-input-line {
+    margin-top: 1rem;
+    padding-top: 0.75rem;
+  }
+
   @media (min-width: 1024px) {
     .responsive-terminal {
       width: 70%;
       max-width: 1200px;
     }
+    .responsive-terminal-body {
+      padding: 2rem;
+    }
+    .responsive-terminal-input-line {
+      margin-top: 2rem;
+      padding-top: 1.5rem;
+    }
+  }
+
+  @media (max-width: 480px) {
+    #title-bar-icp-inline { display: none !important; }
+    #terminal-window {
+      --term-font-size: 0.8rem;
+    }
+    #banner-art {
+      font-size: 0.54rem;
+      line-height: 1.1;
+    }
+    .powered-footer {
+      display: none;
+    }
+  }
+
+  @media (min-width: 481px) {
+    #title-bar-icp-mobile { display: none !important; }
   }
 </style>

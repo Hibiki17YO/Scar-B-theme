@@ -38,7 +38,7 @@ const defaultConfigJson = JSON.stringify(defaultConfig);
         </div>
 
         <!-- Main panel -->
-        <div style="border:1px solid var(--color-border);background:var(--color-terminal);padding:2rem;font-family:var(--font-mono);">
+        <div style="border:1px solid var(--color-border);background:var(--color-terminal);padding:clamp(1rem,4vw,2rem);font-family:var(--font-mono);">
 
           <!-- SITE METADATA -->
           <section class="config-section">
@@ -328,10 +328,9 @@ const defaultConfigJson = JSON.stringify(defaultConfig);
     label = label ?? ''; url = url ?? '';
     const div = document.createElement('div');
     div.className = 'link-row';
-    div.style.cssText = 'display:flex;gap:0.5rem;margin-bottom:0.5rem;align-items:center;';
     div.innerHTML = `
-      <input class="link-label field-input" type="text" placeholder="label (e.g. github)" value="${escHtml(label)}" style="flex:0 0 10rem;">
-      <input class="link-url field-input" type="text" placeholder="https://..." value="${escHtml(url)}" style="flex:1;">
+      <input class="link-label field-input link-label-input" type="text" placeholder="label (e.g. github)" value="${escHtml(label)}">
+      <input class="link-url field-input" type="text" placeholder="https://..." value="${escHtml(url)}" style="flex:1;min-width:0;">
       <button class="remove-row btn-remove" type="button">✕</button>
     `;
     div.querySelector('.remove-row').addEventListener('click', () => div.remove());
@@ -348,10 +347,9 @@ const defaultConfigJson = JSON.stringify(defaultConfig);
     name = name ?? ''; description = description ?? '';
     const div = document.createElement('div');
     div.className = 'project-row';
-    div.style.cssText = 'display:flex;gap:0.5rem;margin-bottom:0.5rem;align-items:center;';
     div.innerHTML = `
-      <input class="proj-name field-input" type="text" placeholder="project name" value="${escHtml(name)}" style="flex:0 0 14rem;">
-      <input class="proj-desc field-input" type="text" placeholder="description" value="${escHtml(description)}" style="flex:1;">
+      <input class="proj-name field-input proj-name-input" type="text" placeholder="project name" value="${escHtml(name)}">
+      <input class="proj-desc field-input" type="text" placeholder="description" value="${escHtml(description)}" style="flex:1;min-width:0;">
       <button class="remove-row btn-remove" type="button">✕</button>
     `;
     div.querySelector('.remove-row').addEventListener('click', () => div.remove());
@@ -362,9 +360,8 @@ const defaultConfigJson = JSON.stringify(defaultConfig);
     name = name ?? ''; description = description ?? '— custom'; output = output ?? ''; enabled = enabled !== false;
     const div = document.createElement('div');
     div.className = 'cmd-row';
-    div.style.cssText = 'display:grid;grid-template-columns:1fr 1.5fr auto;gap:0.75rem;margin-bottom:0.75rem;align-items:start;';
     div.innerHTML = `
-      <div style="display:flex;flex-direction:column;gap:0.4rem;">
+      <div style="display:flex;flex-direction:column;gap:0.4rem;min-width:0;">
         <input class="cmd-name field-input" type="text" placeholder="command name" value="${escHtml(name)}" />
         <input class="cmd-desc field-input" type="text" placeholder="— description in help" value="${escHtml(description)}" />
         <label class="toggle-label">
@@ -372,8 +369,8 @@ const defaultConfigJson = JSON.stringify(defaultConfig);
           <span class="toggle-text">enabled</span>
         </label>
       </div>
-      <textarea class="cmd-output field-textarea" rows="5" placeholder="output text (one line per row)">${escHtml(output)}</textarea>
-      <button class="remove-row btn-remove" type="button" style="margin-top:0.25rem;">✕</button>
+      <textarea class="cmd-output field-textarea" rows="5" placeholder="output text (one line per row)" style="min-width:0;">${escHtml(output)}</textarea>
+      <button class="remove-row btn-remove" type="button" style="margin-top:0.25rem;flex-shrink:0;">✕</button>
     `;
     div.querySelector('.remove-row').addEventListener('click', () => div.remove());
     return div;
@@ -392,11 +389,10 @@ const defaultConfigJson = JSON.stringify(defaultConfig);
       const row = document.createElement('div');
       row.className = 'bc-row';
       row.dataset.id = b.id;
-      row.style.cssText = 'display:grid;grid-template-columns:1fr 2fr auto;gap:0.75rem;align-items:center;margin-bottom:0.6rem;';
       row.innerHTML = `
-        <input class="bc-name field-input" type="text" value="${escHtml(b.name)}" placeholder="command name" />
-        <input class="bc-desc field-input" type="text" value="${escHtml(b.description)}" placeholder="— description shown in help" />
-        <label class="toggle-label" style="white-space:nowrap;">
+        <input class="bc-name field-input" type="text" value="${escHtml(b.name)}" placeholder="command name" style="min-width:0;" />
+        <input class="bc-desc field-input" type="text" value="${escHtml(b.description)}" placeholder="— description shown in help" style="min-width:0;" />
+        <label class="toggle-label" style="white-space:nowrap;flex-shrink:0;">
           <input type="checkbox" class="bc-enabled toggle-check" ${b.enabled ? 'checked' : ''} />
           <span class="toggle-text">enabled</span>
         </label>
@@ -654,7 +650,7 @@ const defaultConfigJson = JSON.stringify(defaultConfig);
   }
 </script>
 
-<style>
+<style is:global>
   .config-section { margin-bottom: 0; }
   .section-title {
     color: var(--color-success);
@@ -664,10 +660,16 @@ const defaultConfigJson = JSON.stringify(defaultConfig);
     font-weight: 600;
   }
   .divider { border-top: 1px solid var(--color-border); margin: 1.5rem 0; }
-  .field-row { display: flex; align-items: center; gap: 1rem; }
+  .field-row { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; }
   .field-col { display: flex; flex-direction: column; gap: 0.4rem; }
   .field-label { color: var(--color-muted); font-size: 0.8rem; min-width: 10rem; flex-shrink: 0; }
   .hint { font-size: 0.7rem; opacity: 0.6; }
+
+  @media (max-width: 640px) {
+    .field-row { flex-direction: column; align-items: flex-start; }
+    .field-label { min-width: unset; }
+    .field-input, .field-textarea { width: 100%; }
+  }
   .field-input {
     background: #0d0d0d; border: 1px solid var(--color-border);
     color: var(--color-text); font-family: var(--font-mono); font-size: 0.875rem;
@@ -711,4 +713,38 @@ const defaultConfigJson = JSON.stringify(defaultConfig);
     padding: 0.2rem 0.4rem; flex-shrink: 0; transition: color 0.15s;
   }
   .btn-remove:hover { color: var(--color-error); }
+
+  /* ── Dynamic row layouts ── */
+  .link-row {
+    display: flex; gap: 0.5rem; margin-bottom: 0.5rem; align-items: center;
+  }
+  .link-label-input { flex: 0 0 10rem; }
+
+  .project-row {
+    display: flex; gap: 0.5rem; margin-bottom: 0.5rem; align-items: center;
+  }
+  .proj-name-input { flex: 0 0 14rem; }
+
+  .cmd-row {
+    display: grid; grid-template-columns: 1fr 1.5fr auto;
+    gap: 0.75rem; margin-bottom: 0.75rem; align-items: start;
+  }
+
+  .bc-row {
+    display: grid; grid-template-columns: 1fr 2fr auto;
+    gap: 0.75rem; align-items: center; margin-bottom: 0.6rem;
+  }
+
+  @media (max-width: 640px) {
+    .link-row, .project-row { flex-wrap: wrap; }
+    .link-label-input { flex: 1 1 100%; }
+    .proj-name-input   { flex: 1 1 100%; }
+    .link-url, .proj-desc { flex: 1 1 100%; }
+
+    .cmd-row { grid-template-columns: 1fr auto; }
+    .cmd-row .cmd-output { grid-column: 1 / -1; }
+
+    .bc-row { grid-template-columns: 1fr auto; }
+    .bc-row .bc-desc { grid-column: 1 / -1; }
+  }
 </style>

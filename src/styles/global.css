@@ -32,6 +32,7 @@ html {
   line-height: 1.6;
   scrollbar-color: var(--color-border) var(--color-bg);
   scrollbar-width: thin;
+  overflow-x: hidden;
 }
 
 body {
@@ -39,6 +40,8 @@ body {
   padding: 0.6rem;
   min-height: 100vh;
   background-color: var(--color-bg);
+  max-width: 100vw;
+  overflow-x: hidden;
 }
 
 a {
@@ -99,7 +102,7 @@ a:hover {
   font-size: 0.875rem;
 }
 .prose pre code { background: none; border: none; padding: 0; font-size: inherit; }
-.prose table { width: 100%; border-collapse: collapse; margin-bottom: 1.5rem; font-size: 0.9rem; }
+.prose table { width: 100%; border-collapse: collapse; margin-bottom: 1.5rem; font-size: 0.9rem; display: block; overflow-x: auto; }
 .prose th {
   background-color: var(--color-code-bg);
   color: var(--color-cmd);
@@ -130,3 +133,9 @@ a:hover {
 ::-webkit-scrollbar-track { background: var(--color-bg); }
 ::-webkit-scrollbar-thumb { background: var(--color-border); border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--color-muted); }
+
+/* ── mobile ── */
+@media (max-width: 480px) {
+  .prose h1 { font-size: 1.4rem; }
+  .prose h2 { font-size: 1.2rem; }
+}

@@ -15,7 +15,7 @@ const terminalDate = date.toISOString().split('T')[0];
 ---
 
 <BaseLayout title={`${title} · hibiki`} description={description}>
-  <div class="min-h-screen py-12 px-4">
+  <div class="min-h-screen py-6 md:py-12 px-4">
     <article class="max-w-[72ch] mx-auto">
 
       <header class="mb-10">
@@ -67,7 +67,7 @@ const terminalDate = date.toISOString().split('T')[0];
         <slot />
       </div>
 
-      <footer class="mt-16 pt-6 border-t" style="border-color: var(--color-border);">
+      <footer class="mt-8 md:mt-16 pt-6 border-t" style="border-color: var(--color-border);">
         <div class="flex items-center justify-between text-sm font-mono" style="color: var(--color-muted);">
           <a
             href="/blog"
