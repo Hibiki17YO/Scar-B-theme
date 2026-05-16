@@ -36,6 +36,7 @@ const ConfigSchema = z.object({
   copyrightText: z.string().max(200).optional(),
   adminCommand: z.string().max(50).optional(),
   blogCommand: z.string().max(50).optional(),
+  postsPerPage: z.number().int().min(1).max(100).optional(),
   showDotArt: z.boolean().optional(),
   showBanner: z.boolean().optional(),
   showName: z.boolean().optional(),

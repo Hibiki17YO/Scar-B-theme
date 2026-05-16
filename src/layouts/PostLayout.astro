@@ -46,7 +46,11 @@ const terminalDate = date.toISOString().split('T')[0];
             <>
               <span class="mx-3">·</span>
               {tags.map(tag => (
-                <span style="color: var(--color-accent);" class="mr-2">#{tag}</span>
+                <a
+                  href={`/tag/${encodeURIComponent(tag)}`}
+                  style="color: var(--color-accent);"
+                  class="mr-2 transition-colors"
+                >#{tag}</a>
               ))}
             </>
           )}

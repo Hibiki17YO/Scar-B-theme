@@ -1,14 +1,12 @@
 import { readFile, stat, readdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { defaultConfig, type TerminalConfig } from '../config/terminal.config';
-import { getConfigPath } from './server-auth';
+import { getConfigPath, getPostsDir } from './server-auth';
+import type { RuntimePost } from './posts-runtime';
 
 // Module-level caches survive across SSR requests in the same Node process.
 // Dev mode (import.meta.env.DEV) bypasses the cache so edits are reflected
 // immediately without restarting the dev server.
-
-const POSTS_DIR = process.env.SCAR_POSTS_DIR
-  ?? join(process.cwd(), 'src', 'content', 'posts');
 
 export interface RuntimeConfigResult {
   config: TerminalConfig;
@@ -73,12 +71,13 @@ let _statsCache: StatsCache | null = null;
 // Cheaper than reading every body to count words, lets the cache hit until
 // any post file actually changes.
 async function postsFingerprint(): Promise<string> {
+  const dir = getPostsDir();
   try {
-    const files = (await readdir(POSTS_DIR)).filter(f => f.endsWith('.md') || f.endsWith('.mdx'));
+    const files = (await readdir(dir)).filter(f => f.endsWith('.md') || f.endsWith('.mdx'));
     files.sort();
     const parts: string[] = [];
     for (const f of files) {
-      const s = await stat(join(POSTS_DIR, f));
+      const s = await stat(join(dir, f));
       parts.push(`${f}:${s.size}:${s.mtimeMs}`);
     }
     return parts.join('|');
@@ -87,21 +86,18 @@ async function postsFingerprint(): Promise<string> {
   }
 }
 
-export async function getPostStats(postIds: string[]): Promise<PostStats> {
+export async function getPostStats(posts: RuntimePost[]): Promise<PostStats> {
   const fingerprint = await postsFingerprint();
   if (!import.meta.env.DEV && _statsCache && _statsCache.fingerprint === fingerprint) {
     return _statsCache.value;
   }
 
   let totalWords = 0;
-  for (const id of postIds) {
-    try {
-      const raw = await readFile(join(POSTS_DIR, `${id}.md`), 'utf-8');
-      const body = raw.replace(/^---[\s\S]*?---\r?\n/, '');
-      const cjk  = (body.match(/[一-鿿぀-ヿ]/g) ?? []).length;
-      const words = (body.match(/[a-zA-Z0-9]+/g) ?? []).length;
-      totalWords += cjk + words;
-    } catch { /* skip */ }
+  for (const post of posts) {
+    const body = post.body;
+    const cjk  = (body.match(/[一-鿿぀-ヿ]/g) ?? []).length;
+    const words = (body.match(/[a-zA-Z0-9]+/g) ?? []).length;
+    totalWords += cjk + words;
   }
 
   const value = { totalWords };

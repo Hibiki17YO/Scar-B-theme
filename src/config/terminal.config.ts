@@ -48,6 +48,7 @@ export interface TerminalConfig {
   showName: boolean;
   adminCommand: string;
   blogCommand: string;
+  postsPerPage: number;
 }
 
 export const defaultConfig: TerminalConfig = {
@@ -124,6 +125,7 @@ export const defaultConfig: TerminalConfig = {
     { id: 'whoami',   name: 'whoami',   description: '— about the author',           enabled: true },
     { id: 'blog',     name: 'blog',     description: '— list recent posts',          enabled: true },
     { id: 'ls',       name: 'ls',       description: '— alias for blog',             enabled: false },
+    { id: 'rss',      name: 'rss',      description: '— subscribe to the feed',      enabled: true },
     { id: 'projects', name: 'projects', description: '— showcase projects',          enabled: true },
   ],
   showSiteInfo: true,
@@ -134,4 +136,5 @@ export const defaultConfig: TerminalConfig = {
   showName: true,
   adminCommand: 'sudo admin',
   blogCommand: 'sudo blog',
+  postsPerPage: 10,
 };

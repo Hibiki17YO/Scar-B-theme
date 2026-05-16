@@ -1,33 +1,32 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
 import Terminal from '../components/Terminal.astro';
-import { getCollection } from 'astro:content';
 import { getRuntimeConfig, getPostStats } from '../lib/runtime-cache';
+import { getPostsRuntime } from '../lib/posts-runtime';
 
-const allPosts = await getCollection('posts', ({ data }) => !data.draft);
-allPosts.sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf());
+const allPosts = await getPostsRuntime(p => !p.frontmatter.draft);
 
 const postsForTerminal = allPosts.map(post => {
-  // Use UTC — "YYYY-MM-DD" in frontmatter is parsed as UTC midnight
-  const d = post.data.date;
-  const pad = (n: number) => String(n).padStart(2, '0');
-  const dateStr = `${d.getUTCFullYear()}-${pad(d.getUTCMonth()+1)}-${pad(d.getUTCDate())} ${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}`;
+  // post.frontmatter.date is a string like "2026-05-16" or "2026-05-16 14:00"
+  // Normalize to "YYYY-MM-DD HH:MM" for the terminal display
+  const d = post.frontmatter.date;
+  const dateStr = d.length >= 16 ? d.slice(0, 16).replace('T', ' ') : `${d} 00:00`;
   return {
     slug:        post.id,
-    title:       post.data.title,
+    title:       post.frontmatter.title,
     date:        dateStr,
-    description: post.data.description,
-    tags:        post.data.tags ?? [],
+    description: post.frontmatter.description,
+    tags:        post.frontmatter.tags ?? [],
   };
 });
 
-// Word count is heavy (reads every post body); cache it by posts-dir fingerprint.
-const { totalWords } = await getPostStats(allPosts.map(p => p.id));
+// Word count is heavy; cache it by posts-dir fingerprint.
+const { totalWords } = await getPostStats(allPosts);
 
 let lastUpdateTs = 0;
 for (const post of allPosts) {
-  const ts = post.data.date.valueOf();
-  if (ts > lastUpdateTs) lastUpdateTs = ts;
+  const ts = new Date(post.frontmatter.date.replace(' ', 'T')).valueOf();
+  if (!isNaN(ts) && ts > lastUpdateTs) lastUpdateTs = ts;
 }
 const lastUpdateDate = lastUpdateTs > 0
   ? new Date(lastUpdateTs).toISOString().slice(0, 10)

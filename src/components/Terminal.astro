@@ -40,14 +40,29 @@ const statsJson  = JSON.stringify(siteStats);
            flex-direction: column;
            cursor: text;
            background: var(--color-terminal);
-           box-shadow: 0 30px 60px rgba(0,0,0,0.5);
+           box-shadow: 0 30px 60px var(--color-panel-shadow);
            position: relative;
            overflow: hidden;"
   >
     <!-- 标题栏 -->
-    <div id="title-bar" style="background: #1a1a1a; border-bottom: 1px solid var(--color-border); padding: 0.5rem 1rem; flex-shrink: 0;">
-      <div style="display: flex; align-items: center;">
+    <div id="title-bar" style="background: var(--color-titlebar); border-bottom: 1px solid var(--color-border); padding: 0.5rem 1rem; flex-shrink: 0;">
+      <div style="position: relative; display: flex; align-items: center;">
         <span id="title-bar-prompt" style="color: var(--color-muted); font-size: 0.8rem; font-family: var(--font-mono); opacity: 0.8;"></span>
+        <!-- PC 中央主题词：absolute 居中，不影响两端 -->
+        <span id="theme-toggle"
+          role="button" tabindex="0" aria-label="Toggle theme"
+          style="position: absolute; left: 50%; transform: translateX(-50%);
+                 color: var(--color-muted); font-family: var(--font-mono); font-size: 0.75rem;
+                 cursor: pointer; user-select: none; letter-spacing: 0.05em;
+                 display: none;"
+        >Dark</span>
+        <!-- 移动端主题词：inline，紧贴右侧 -->
+        <span id="theme-toggle-mobile"
+          role="button" tabindex="0" aria-label="Toggle theme"
+          style="margin-left: auto; color: var(--color-muted); font-family: var(--font-mono);
+                 font-size: 0.75rem; cursor: pointer; user-select: none; letter-spacing: 0.05em;
+                 flex-shrink: 0;"
+        >Dark</span>
         <span id="title-bar-icp-inline" style="margin-left: auto; color: var(--color-muted); font-size: 0.8rem; font-family: var(--font-mono); opacity: 0.6; flex-shrink: 0; display: none;"></span>
       </div>
       <div id="title-bar-icp-mobile" style="display: none; margin-top: 0.2rem;">
@@ -85,7 +100,7 @@ const statsJson  = JSON.stringify(siteStats);
         <div
           id="terminal-input-line"
           class="flex items-center gap-2 font-mono responsive-terminal-input-line"
-          style="border-top: 1px solid rgba(255,255,255,0.05);"
+          style="border-top: 1px solid var(--color-row-border);"
         >
           <span
             id="terminal-prompt"
@@ -108,7 +123,7 @@ const statsJson  = JSON.stringify(siteStats);
       </div>
     </div>
     <!-- 底部信息栏：copyright + powered，始终在命令行输出之下 -->
-    <div id="terminal-footer" style="flex-shrink: 0; font-family: var(--font-mono); font-size: 0.75rem; color: var(--color-muted); text-align: center; padding: 0.5rem 1rem 0.6rem; line-height: 1.8; border-top: 1px solid rgba(255,255,255,0.04); pointer-events: none; user-select: none;">
+    <div id="terminal-footer" style="flex-shrink: 0; font-family: var(--font-mono); font-size: 0.75rem; color: var(--color-muted); text-align: center; padding: 0.5rem 1rem 0.6rem; line-height: 1.8; border-top: 1px solid var(--color-row-border); pointer-events: none; user-select: none;">
       <div id="title-bar-copyright" style="display: none;"></div>
       <div>Powered by <a href="https://astro.build/" target="_blank" rel="noopener noreferrer" style="color:var(--color-whoami-link);text-decoration:none;pointer-events:auto;">Astro</a> &amp; <a href="https://github.com/Hibiki17YO/Scar-B-theme" target="_blank" rel="noopener noreferrer" style="color:var(--color-whoami-link);text-decoration:none;pointer-events:auto;">Scar-B theme</a></div>
     </div>
@@ -118,6 +133,8 @@ const statsJson  = JSON.stringify(siteStats);
 <div id="posts-data" data-posts={postsJson} hidden></div>
 <div id="terminal-config" data-config={configJson} hidden data-has-admin-pass={String(hasAdminPass)} data-has-blog-pass={String(hasBlogPass)}></div>
 <div id="site-stats" data-stats={statsJson} hidden></div>
+
+<script is:inline src="/js/sha256.js"></script>
 
 <script>
   import type { TerminalConfig } from '../config/terminal.config';
@@ -172,6 +189,55 @@ const statsJson  = JSON.stringify(siteStats);
   const outputEl            = document.getElementById('terminal-output')!;
   const inputEl             = document.getElementById('terminal-input') as HTMLInputElement;
   const fakeCursor          = document.getElementById('fake-cursor')!;
+  const themeToggle         = document.getElementById('theme-toggle') as HTMLElement | null;
+  const themeToggleMobile   = document.getElementById('theme-toggle-mobile') as HTMLElement | null;
+
+  const THEME_LABELS: Record<string, string> = { dark: 'Dark', light: 'Eliana', amaris: 'Amaris' };
+  const THEME_CYCLE: string[] = ['dark', 'light', 'amaris'];
+
+  const mql = window.matchMedia('(min-width: 640px)');
+
+  function currentTheme(): string {
+    return document.documentElement.dataset.theme || 'dark';
+  }
+
+  function applyThemeToggleVisibility() {
+    const isDesktop = mql.matches;
+    if (themeToggle)       themeToggle.style.display       = isDesktop ? '' : 'none';
+    if (themeToggleMobile) themeToggleMobile.style.display = isDesktop ? 'none' : '';
+  }
+
+  function setTheme(theme: string) {
+    if (theme === 'dark') {
+      delete document.documentElement.dataset.theme;
+    } else {
+      document.documentElement.dataset.theme = theme;
+    }
+    const label = THEME_LABELS[theme] ?? theme;
+    if (themeToggle)       themeToggle.textContent       = label;
+    if (themeToggleMobile) themeToggleMobile.textContent = label;
+    applyThemeToggleVisibility();
+  }
+
+  function handleToggle(event: Event) {
+    event.stopPropagation();
+    const idx = THEME_CYCLE.indexOf(currentTheme());
+    const next = THEME_CYCLE[(idx + 1) % THEME_CYCLE.length];
+    setTheme(next);
+    try { localStorage.setItem('theme', next); } catch (_) {}
+  }
+
+  setTheme(currentTheme());
+  mql.addEventListener('change', applyThemeToggleVisibility);
+
+  themeToggle?.addEventListener('click', handleToggle);
+  themeToggle?.addEventListener('keydown', (e: KeyboardEvent) => {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleToggle(e); }
+  });
+  themeToggleMobile?.addEventListener('click', handleToggle);
+  themeToggleMobile?.addEventListener('keydown', (e: KeyboardEvent) => {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleToggle(e); }
+  });
 
   // ── Populate config-driven DOM elements ──────────────────────────────────────
 
@@ -285,7 +351,7 @@ const statsJson  = JSON.stringify(siteStats);
 
     if ((line.type === 'link' || line.type === 'link-dark') && line.href) {
       const linkColor = line.type === 'link-dark' ? 'var(--color-whoami-link)' : 'var(--color-accent)';
-      const linkHover = line.type === 'link-dark' ? '#c0392b' : 'var(--color-link-hover)';
+      const linkHover = line.type === 'link-dark' ? 'var(--color-error)' : 'var(--color-link-hover)';
       if (line.prefix) {
         const pre = document.createElement('span');
         pre.style.color = 'var(--color-muted)';
@@ -335,55 +401,13 @@ const statsJson  = JSON.stringify(siteStats);
   }
 
   // ── SHA-256 helper ───────────────────────────────────────────────────────────
-
-  async function sha256hex(s: string): Promise<string> {
-    const data = new TextEncoder().encode(s);
-    if (typeof crypto !== 'undefined' && crypto.subtle) {
-      const buf = await crypto.subtle.digest('SHA-256', data);
-      return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
-    }
-    return sha256js(data);
-  }
-
-  function sha256js(data: Uint8Array): string {
-    function rr(v: number, a: number) { return (v >>> a) | (v << (32 - a)); }
-    const K = [
-      0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5,0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5,
-      0xd807aa98,0x12835b01,0x243185be,0x550c7dc3,0x72be5d74,0x80deb1fe,0x9bdc06a7,0xc19bf174,
-      0xe49b69c1,0xefbe4786,0x0fc19dc6,0x240ca1cc,0x2de92c6f,0x4a7484aa,0x5cb0a9dc,0x76f988da,
-      0x983e5152,0xa831c66d,0xb00327c8,0xbf597fc7,0xc6e00bf3,0xd5a79147,0x06ca6351,0x14292967,
-      0x27b70a85,0x2e1b2138,0x4d2c6dfc,0x53380d13,0x650a7354,0x766a0abb,0x81c2c92e,0x92722c85,
-      0xa2bfe8a1,0xa81a664b,0xc24b8b70,0xc76c51a3,0xd192e819,0xd6990624,0xf40e3585,0x106aa070,
-      0x19a4c116,0x1e376c08,0x2748774c,0x34b0bcb5,0x391c0cb3,0x4ed8aa4a,0x5b9cca4f,0x682e6ff3,
-      0x748f82ee,0x78a5636f,0x84c87814,0x8cc70208,0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2,
-    ];
-    let h = [0x6a09e667,0xbb67ae85,0x3c6ef372,0xa54ff53a,0x510e527f,0x9b05688c,0x1f83d9ab,0x5be0cd19];
-    const len = data.length;
-    const padded = new Uint8Array(((len + 9 + 63) >> 6) << 6);
-    padded.set(data); padded[len] = 0x80;
-    new DataView(padded.buffer).setUint32(padded.length - 4, len * 8 >>> 0, false);
-    for (let i = 0; i < padded.length; i += 64) {
-      const w: number[] = new Array(64);
-      const dv = new DataView(padded.buffer, i, 64);
-      for (let j = 0; j < 16; j++) w[j] = dv.getUint32(j * 4, false);
-      for (let j = 16; j < 64; j++) {
-        const s0 = rr(w[j-15],7) ^ rr(w[j-15],18) ^ (w[j-15] >>> 3);
-        const s1 = rr(w[j-2],17) ^ rr(w[j-2],19)  ^ (w[j-2] >>> 10);
-        w[j] = (w[j-16] + s0 + w[j-7] + s1) >>> 0;
-      }
-      let [a,b,c,d,e,f,g,hh] = h;
-      for (let j = 0; j < 64; j++) {
-        const S1 = rr(e,6) ^ rr(e,11) ^ rr(e,25);
-        const ch = (e & f) ^ (~e & g);
-        const t1 = (hh + S1 + ch + K[j] + w[j]) >>> 0;
-        const S0 = rr(a,2) ^ rr(a,13) ^ rr(a,22);
-        const maj = (a & b) ^ (a & c) ^ (b & c);
-        const t2 = (S0 + maj) >>> 0;
-        hh=g; g=f; f=e; e=(d+t1)>>>0; d=c; c=b; b=a; a=(t1+t2)>>>0;
-      }
-      h = h.map((v,i) => ([a,b,c,d,e,f,g,hh][i] + v) >>> 0);
-    }
-    return h.map(v => v.toString(16).padStart(8,'0')).join('');
+  // Implementation lives in /js/sha256.js, loaded via the <script src> below.
+  // We declare a local typed wrapper that delegates to window.sha256hex so
+  // existing call sites stay typed.
+  function sha256hex(s: string): Promise<string> {
+    const fn = (window as unknown as { sha256hex?: (s: string) => Promise<string> }).sha256hex;
+    if (!fn) throw new Error('sha256.js not loaded');
+    return fn(s);
   }
 
   // ── Admin login flow ─────────────────────────────────────────────────────────
@@ -450,6 +474,94 @@ const statsJson  = JSON.stringify(siteStats);
     });
   }
 
+  // ── Search flow ──────────────────────────────────────────────────────────────
+
+  async function handleSearch(): Promise<void> {
+    const inputLine = document.getElementById('terminal-input-line')!;
+
+    // Inline "search: [input]" row
+    const searchLine = document.createElement('div');
+    searchLine.style.cssText = 'display:flex;align-items:center;gap:0.4rem;font-family:var(--font-mono);font-size:var(--term-font-size,1rem);line-height:1.6;';
+    const searchLabel = document.createElement('span');
+    searchLabel.style.color = 'var(--color-muted)';
+    searchLabel.textContent = 'search:';
+    searchLine.appendChild(searchLabel);
+    searchLine.appendChild(inputEl);
+    outputEl.appendChild(searchLine);
+
+    inputLine.style.display = 'none';
+    inputEl.type = 'text';
+    inputEl.value = '';
+    inputEl.focus();
+    awaitingPassword = true;
+    scrollToBottom();
+
+    await new Promise<void>(resolve => {
+      const onKey = async (e: KeyboardEvent) => {
+        if (e.key !== 'Enter') return;
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        const query = inputEl.value.trim();
+        inputEl.value = '';
+        awaitingPassword = false;
+        inputEl.removeEventListener('keydown', onKey);
+
+        // Restore input line
+        inputLine.insertBefore(inputEl, fakeCursor);
+        inputLine.style.display = '';
+        searchLine.remove();
+
+        // Echo what was typed as "search: <query>"
+        const echoEl = document.createElement('div');
+        echoEl.style.cssText = 'font-family:var(--font-mono);font-size:var(--term-font-size,1rem);line-height:1.6;';
+        echoEl.innerHTML = `<span style="color:var(--color-muted)">search:</span> <span style="color:var(--color-cmd)">${escapeHtml(query)}</span>`;
+        outputEl.appendChild(echoEl);
+
+        if (!query) {
+          await appendLines([{ type: 'muted', content: 'no query entered.' }]);
+          resolve();
+          return;
+        }
+
+        const q = query.toLowerCase();
+        const matched = posts.filter(p =>
+          p.title.toLowerCase().includes(q) ||
+          p.description.toLowerCase().includes(q) ||
+          p.tags.some(t => t.toLowerCase().includes(q))
+        );
+
+        if (matched.length === 0) {
+          await appendLines([
+            { type: 'text',  content: '' },
+            { type: 'error', content: `no results for "${query}"` },
+            { type: 'text',  content: '' },
+          ]);
+        } else {
+          const resultLines: OutputLine[] = [
+            { type: 'text',    content: '' },
+            { type: 'success', content: `> ${matched.length} result(s) for "${query}"` },
+            { type: 'text',    content: '' },
+          ];
+          for (const post of matched) {
+            resultLines.push({ type: 'muted', content: `  [${post.date}]` });
+            resultLines.push({ type: 'link',  content: post.title, href: `/blog/${post.slug}`, prefix: '  ' });
+            const desc = post.description.length > 60 ? post.description.slice(0, 60) + '…' : post.description;
+            resultLines.push({ type: 'muted', content: `  └─ ${desc}` });
+            if (post.tags.length > 0) {
+              resultLines.push({ type: 'accent', content: `     ${post.tags.map(t => `#${t}`).join(' ')}` });
+            }
+            resultLines.push({ type: 'text', content: '' });
+          }
+          await appendLines(resultLines);
+        }
+
+        inputEl.focus();
+        resolve();
+      };
+      inputEl.addEventListener('keydown', onKey);
+    });
+  }
+
   // ── Commands ──────────────────────────────────────────────────────────────────
 
   // Build a lookup from builtin id → effective config
@@ -469,13 +581,14 @@ const statsJson  = JSON.stringify(siteStats);
       { type: 'success', content: 'Available commands:' },
       { type: 'text',    content: '' },
     ];
-    const builtinOrder = ['name', 'whoami', 'blog', 'ls', 'projects'];
+    const builtinOrder = ['name', 'whoami', 'blog', 'ls', 'rss', 'projects'];
     for (const id of builtinOrder) {
       const b = builtinCfg[id];
       if (!b || !b.enabled) continue;
       lines.push({ type: 'text', content: `  ${b.name.padEnd(10)}${b.description}`, hangIndent: '12ch' });
     }
     lines.push({ type: 'text', content: `  ${'clear'.padEnd(10)}— clear terminal`, hangIndent: '12ch' });
+    lines.push({ type: 'text', content: `  ${'search'.padEnd(10)}— search posts`, hangIndent: '12ch' });
     lines.push({ type: 'text', content: `  ${'help'.padEnd(10)}— show this message`, hangIndent: '12ch' });
     for (const cc of config.customCommands) {
       if (cc.enabled === false) continue;
@@ -555,6 +668,21 @@ const statsJson  = JSON.stringify(siteStats);
     }
   }
 
+  // rss
+  {
+    const b = bcfg('rss', 'rss', '— subscribe to the feed');
+    if (b.enabled) {
+      COMMANDS[b.name.toLowerCase()] = () => [
+        { type: 'text', content: '' },
+        { type: 'success', content: '> rss feed' },
+        { type: 'text', content: '' },
+        { type: 'link', content: '/rss.xml', href: '/rss.xml', prefix: '  ' },
+        { type: 'muted', content: '  └─ add this URL to your feed reader' },
+        { type: 'text', content: '' },
+      ];
+    }
+  }
+
   // projects
   {
     const b = bcfg('projects', 'projects', '— showcase projects');
@@ -605,6 +733,13 @@ const statsJson  = JSON.stringify(siteStats);
     if (cmd === config.blogCommand.toLowerCase()) {
       echoCommand(rawInput.trim());
       await handleLogin('blog', hasBlogPass, 'blog_token', '/blog-admin');
+      return;
+    }
+
+    // Search command
+    if (cmd === 'search') {
+      echoCommand(rawInput.trim());
+      await handleSearch();
       return;
     }
 
@@ -664,7 +799,7 @@ const statsJson  = JSON.stringify(siteStats);
       const partial = inputEl.value.toLowerCase().trim();
       if (!partial) return;
       // Admin command is intentionally excluded from Tab completion
-      const allCmds = [...Object.keys(COMMANDS), 'clear'];
+      const allCmds = [...Object.keys(COMMANDS), 'clear', 'search'];
       const matches = allCmds.filter(c => c.startsWith(partial));
       if (matches.length === 1) {
         inputEl.value = matches[0];
@@ -690,7 +825,7 @@ const statsJson  = JSON.stringify(siteStats);
   #terminal-content-area { scroll-behavior: smooth; }
   #terminal-content-area::-webkit-scrollbar { width: 4px; }
   #terminal-content-area::-webkit-scrollbar-track { background: transparent; }
-  #terminal-content-area::-webkit-scrollbar-thumb { background: #333; border-radius: 2px; }
+  #terminal-content-area::-webkit-scrollbar-thumb { background: var(--color-border); border-radius: 2px; }
 
   .responsive-terminal {
     width: 100%;

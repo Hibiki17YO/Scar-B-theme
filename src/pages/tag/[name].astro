@@ -1,22 +1,24 @@
 ---
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import { getPostsRuntime } from '../../lib/posts-runtime';
-import { getRuntimeConfig } from '../../lib/runtime-cache';
 
-const [allPosts, { config }] = await Promise.all([
-  getPostsRuntime(p => !p.frontmatter.draft),
-  getRuntimeConfig(),
-]);
-const pageSize = Math.max(1, config.postsPerPage || 10);
-const totalPages = Math.max(1, Math.ceil(allPosts.length / pageSize));
-const posts = allPosts.slice(0, pageSize);
+const rawName = Astro.params.name ?? '';
+const tagName = decodeURIComponent(rawName).trim();
+const tagKey = tagName.toLowerCase();
+
+const posts = tagKey
+  ? await getPostsRuntime(post =>
+      !post.frontmatter.draft
+      && (post.frontmatter.tags ?? []).some(tag => tag.toLowerCase() === tagKey),
+    )
+  : [];
 
 function dateOnly(d: string): string {
   return d.slice(0, 10);
 }
 ---
 
-<BaseLayout title="/blog · hibiki" description="All posts">
+<BaseLayout title={`#${tagName || 'tag'} · hibiki`} description={`Posts tagged #${tagName}`}>
   <div class="min-h-screen py-8 md:py-16 px-4">
     <div class="max-w-3xl mx-auto font-mono">
 
@@ -27,14 +29,18 @@ function dateOnly(d: string): string {
              onmouseout="this.style.color='var(--color-muted)'">
             <span data-prompt>visitor@hibiki:~$</span>
           </a>
-          <span class="mx-2">ls</span>
-          <span style="color: var(--color-cmd);">~/blog</span>
+          <span class="mx-2">cd</span>
+          <a href="/blog" class="transition-colors" style="color: var(--color-muted);"
+             onmouseover="this.style.color='var(--color-prompt)'"
+             onmouseout="this.style.color='var(--color-muted)'">~/blog</a>
+          <span class="mx-2">&&</span>
+          <span style="color: var(--color-cmd);">grep #{tagName}</span>
         </div>
         <h1 class="text-xl font-semibold" style="color: var(--color-text);">
-          <span style="color: var(--color-prompt);">~</span>/blog
+          <span style="color: var(--color-prompt);">#</span>{tagName}
         </h1>
         <p class="text-sm mt-1" style="color: var(--color-muted);">
-          {allPosts.length} post(s) — page 1 / {totalPages}
+          {posts.length} post(s) tagged #{tagName}
         </p>
       </header>
 
@@ -52,6 +58,8 @@ function dateOnly(d: string): string {
                 href={`/blog/${post.id}`}
                 class="block text-base font-medium transition-colors"
                 style="color: var(--color-cmd);"
+                onmouseover="this.style.color='var(--color-link-hover)'"
+                onmouseout="this.style.color='var(--color-cmd)'"
               >
                 {post.frontmatter.title}
               </a>
@@ -76,30 +84,24 @@ function dateOnly(d: string): string {
         })}
       </ul>
 
-      {allPosts.length === 0 && (
+      {posts.length === 0 && (
         <div class="text-sm" style="color: var(--color-muted);">
-          <span style="color: var(--color-error);">✗</span> No posts found.
+          <span style="color: var(--color-error);">✗</span> No posts found for this tag.
         </div>
       )}
 
-      {totalPages > 1 && (
-        <nav class="mt-8 flex items-center justify-between text-sm" style="color: var(--color-muted);">
-          <span>page 1 / {totalPages}</span>
-          <a href="/blog/page/2" class="transition-colors"
-             style="color: var(--color-cmd);"
-             onmouseover="this.style.color='var(--color-link-hover)'"
-             onmouseout="this.style.color='var(--color-cmd)'">
-            next →
-          </a>
-        </nav>
-      )}
-
-      <footer class="mt-8 md:mt-16 pt-6 border-t text-sm" style="border-color: var(--color-border); color: var(--color-muted);">
-        <a href="/" class="transition-colors"
+      <footer class="mt-8 md:mt-16 pt-6 border-t text-sm flex justify-between gap-4" style="border-color: var(--color-border); color: var(--color-muted);">
+        <a href="/blog" class="transition-colors"
            style="color: var(--color-muted);"
            onmouseover="this.style.color='var(--color-prompt)'"
            onmouseout="this.style.color='var(--color-muted)'">
-          ← back to terminal
+          ← back to /blog
+        </a>
+        <a href="/tag" class="transition-colors"
+           style="color: var(--color-muted);"
+           onmouseover="this.style.color='var(--color-prompt)'"
+           onmouseout="this.style.color='var(--color-muted)'">
+          all tags →
         </a>
       </footer>
 

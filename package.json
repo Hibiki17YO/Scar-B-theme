@@ -20,7 +20,9 @@
   "dependencies": {
     "@astrojs/mdx": "^5.0.5",
     "@astrojs/node": "^10.1.1",
-    "astro": "^6.3.2"
+    "@astrojs/rss": "^4.0.18",
+    "astro": "^6.3.2",
+    "marked": "^18.0.3"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

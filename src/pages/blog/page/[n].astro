@@ -1,7 +1,10 @@
 ---
-import BaseLayout from '../../layouts/BaseLayout.astro';
-import { getPostsRuntime } from '../../lib/posts-runtime';
-import { getRuntimeConfig } from '../../lib/runtime-cache';
+import BaseLayout from '../../../layouts/BaseLayout.astro';
+import { getPostsRuntime } from '../../../lib/posts-runtime';
+import { getRuntimeConfig } from '../../../lib/runtime-cache';
+
+const rawPage = Astro.params.n ?? '1';
+const page = Number.parseInt(rawPage, 10);
 
 const [allPosts, { config }] = await Promise.all([
   getPostsRuntime(p => !p.frontmatter.draft),
@@ -9,14 +12,24 @@ const [allPosts, { config }] = await Promise.all([
 ]);
 const pageSize = Math.max(1, config.postsPerPage || 10);
 const totalPages = Math.max(1, Math.ceil(allPosts.length / pageSize));
-const posts = allPosts.slice(0, pageSize);
+
+if (!Number.isInteger(page) || page < 1 || page > totalPages) {
+  return new Response('Not found', { status: 404 });
+}
+if (page === 1) {
+  return Astro.redirect('/blog');
+}
+
+const posts = allPosts.slice((page - 1) * pageSize, page * pageSize);
+const prevHref = page === 2 ? '/blog' : `/blog/page/${page - 1}`;
+const nextHref = page < totalPages ? `/blog/page/${page + 1}` : '';
 
 function dateOnly(d: string): string {
   return d.slice(0, 10);
 }
 ---
 
-<BaseLayout title="/blog · hibiki" description="All posts">
+<BaseLayout title={`/blog/page/${page} · hibiki`} description={`Blog page ${page}`}>
   <div class="min-h-screen py-8 md:py-16 px-4">
     <div class="max-w-3xl mx-auto font-mono">
 
@@ -28,13 +41,17 @@ function dateOnly(d: string): string {
             <span data-prompt>visitor@hibiki:~$</span>
           </a>
           <span class="mx-2">ls</span>
-          <span style="color: var(--color-cmd);">~/blog</span>
+          <a href="/blog" class="transition-colors" style="color: var(--color-muted);"
+             onmouseover="this.style.color='var(--color-prompt)'"
+             onmouseout="this.style.color='var(--color-muted)'">~/blog</a>
+          <span class="mx-2">--page</span>
+          <span style="color: var(--color-cmd);">{page}</span>
         </div>
         <h1 class="text-xl font-semibold" style="color: var(--color-text);">
           <span style="color: var(--color-prompt);">~</span>/blog
         </h1>
         <p class="text-sm mt-1" style="color: var(--color-muted);">
-          {allPosts.length} post(s) — page 1 / {totalPages}
+          {allPosts.length} post(s) — page {page} / {totalPages}
         </p>
       </header>
 
@@ -76,23 +93,25 @@ function dateOnly(d: string): string {
         })}
       </ul>
 
-      {allPosts.length === 0 && (
-        <div class="text-sm" style="color: var(--color-muted);">
-          <span style="color: var(--color-error);">✗</span> No posts found.
-        </div>
-      )}
-
-      {totalPages > 1 && (
-        <nav class="mt-8 flex items-center justify-between text-sm" style="color: var(--color-muted);">
-          <span>page 1 / {totalPages}</span>
-          <a href="/blog/page/2" class="transition-colors"
+      <nav class="mt-8 flex items-center justify-between text-sm" style="color: var(--color-muted);">
+        <a href={prevHref} class="transition-colors"
+           style="color: var(--color-cmd);"
+           onmouseover="this.style.color='var(--color-link-hover)'"
+           onmouseout="this.style.color='var(--color-cmd)'">
+          ← prev
+        </a>
+        <span>page {page} / {totalPages}</span>
+        {nextHref ? (
+          <a href={nextHref} class="transition-colors"
              style="color: var(--color-cmd);"
              onmouseover="this.style.color='var(--color-link-hover)'"
              onmouseout="this.style.color='var(--color-cmd)'">
             next →
           </a>
-        </nav>
-      )}
+        ) : (
+          <span style="color: var(--color-muted);">next →</span>
+        )}
+      </nav>
 
       <footer class="mt-8 md:mt-16 pt-6 border-t text-sm" style="border-color: var(--color-border); color: var(--color-muted);">
         <a href="/" class="transition-colors"

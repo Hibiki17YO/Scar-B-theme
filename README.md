@@ -19,10 +19,16 @@ The name comes from two works I love: *Girls' Frontline* (Scar-L & Scar-H) and *
 ## Features
 
 - Terminal UI with command input, history, and Tab autocomplete
-- Built-in commands: `whoami`, `blog`, `projects`, `name`, `clear`, `help`
+- Built-in commands: `whoami`, `blog`, `ls`, `rss`, `projects`, `search`, `name`, `clear`, `help`
+- Full-text post search directly from the terminal (`search` command)
+- Tag archive pages (`/tag/<name>`) and tag index (`/tag`)
+- Paginated blog list (`/blog/page/<n>`) with configurable posts-per-page
+- Three built-in colour themes switchable from the title bar: **Dark**, **Eliana**, **Amaris**
+- Smooth theme transition animation, preference persisted in `localStorage`
 - Fully configurable via a browser-based admin panel (`sudo admin`)
 - Blog post editor with Markdown support (`sudo blog`)
 - Server-side config persistence — changes survive redeployment
+- RSS feed at `/rss.xml`, auto-linked in `<head>`
 - ASCII art banner, dot pattern, site info block with computed variables (`{uptime}`, `{posts}`, `{words}`, `{last_update}`)
 - ICP number display, copyright text, "Powered by" footer
 - Password-protected admin and blog panels (SHA-256 hashed, no plaintext stored)
@@ -82,6 +88,7 @@ All write endpoints (`PUT /api/config`, `POST/PUT/DELETE /api/posts/*`) require 
 | `PUT /api/config`       | `X-Admin-Token` header (= SHA-256 of admin password) |
 | `POST /api/auth`        | Public — body `{ kind, hash }`, returns 200 / 401 / 429 |
 | `POST/PUT/DELETE /api/posts/*` | `X-Blog-Token` or `X-Admin-Token` |
+| `GET /rss.xml`          | Public — Atom/RSS feed of non-draft posts |
 
 Login flow: client SHA-256s the password → POSTs to `/api/auth` for validation → on success, stores the hash in `sessionStorage` as the bearer token.
 
@@ -99,7 +106,7 @@ src/
 │   └── Terminal.astro         # Main terminal UI
 ├── config/
 │   ├── terminal.config.ts     # Default config (committed)
-│   └── user.config.json       # Runtime overrides (do not commit)
+│   └── user.config.json       # Runtime overrides (auto-generated)
 ├── content/
 │   └── posts/                 # Markdown blog posts
 ├── layouts/
@@ -133,7 +140,7 @@ pm2 save
 pm2 startup    # generate the systemd unit, then run the command it prints
 ```
 
-Or with a systemd unit directly — see `docs/deployment.md` (TODO).
+Or manage the process with a systemd unit file directly.
 
 ### Environment variables
 
@@ -147,6 +154,8 @@ Or with a systemd unit directly — see `docs/deployment.md` (TODO).
 See `.env.example`.
 
 > **Note**: `src/config/user.config.json` must be writable at runtime. This theme is designed for VPS deployment — not for serverless platforms (Vercel, Netlify, etc.) where the filesystem is read-only.
+
+> **RSS feed URLs**: `<link rel="alternate" ... href="/rss.xml">` is auto-injected. Article links inside the feed use `astro.config.mjs`'s `site` value, so set this to your real domain before deploying (default placeholder is `https://yourdomain.com`).
 
 > **Build-time content collection caveat**: Astro Content Collections snapshot `src/content/posts` at `npm run build`. New posts created via the editor after the build *do* persist to disk, but only show up on `/blog/<slug>` after a rebuild. The Terminal `blog` command reads via the runtime API and is unaffected.
 

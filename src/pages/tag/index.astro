@@ -1,0 +1,73 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { getPostsRuntime } from '../../lib/posts-runtime';
+
+const posts = await getPostsRuntime(post => !post.frontmatter.draft);
+const tags = Array.from(
+  posts.reduce((acc, post) => {
+    for (const tag of post.frontmatter.tags ?? []) {
+      const key = tag.toLowerCase();
+      const current = acc.get(key) ?? { name: tag, count: 0 };
+      current.count += 1;
+      acc.set(key, current);
+    }
+    return acc;
+  }, new Map<string, { name: string; count: number }>()),
+  ([, value]) => value,
+).sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
+---
+
+<BaseLayout title="/tag · hibiki" description="All tags">
+  <div class="min-h-screen py-8 md:py-16 px-4">
+    <div class="max-w-3xl mx-auto font-mono">
+
+      <header class="mb-10">
+        <div class="text-sm mb-2" style="color: var(--color-muted);">
+          <a href="/" class="transition-colors" style="color: var(--color-muted);"
+             onmouseover="this.style.color='var(--color-prompt)'"
+             onmouseout="this.style.color='var(--color-muted)'">
+            <span data-prompt>visitor@hibiki:~$</span>
+          </a>
+          <span class="mx-2">ls</span>
+          <span style="color: var(--color-cmd);">~/tag</span>
+        </div>
+        <h1 class="text-xl font-semibold" style="color: var(--color-text);">
+          <span style="color: var(--color-prompt);">~</span>/tag
+        </h1>
+        <p class="text-sm mt-1" style="color: var(--color-muted);">
+          {tags.length} tag(s) — sorted by usage
+        </p>
+      </header>
+
+      <div class="border-t mb-8" style="border-color: var(--color-border);"></div>
+
+      {tags.length > 0 ? (
+        <div class="flex flex-wrap gap-3">
+          {tags.map(tag => (
+            <a
+              href={`/tag/${encodeURIComponent(tag.name)}`}
+              class="px-3 py-1 rounded border transition-colors"
+              style="color: var(--color-accent); background: var(--color-code-bg); border-color: var(--color-border);"
+            >
+              #{tag.name} <span style="color: var(--color-muted);">({tag.count})</span>
+            </a>
+          ))}
+        </div>
+      ) : (
+        <div class="text-sm" style="color: var(--color-muted);">
+          <span style="color: var(--color-error);">✗</span> No tags found.
+        </div>
+      )}
+
+      <footer class="mt-8 md:mt-16 pt-6 border-t text-sm" style="border-color: var(--color-border); color: var(--color-muted);">
+        <a href="/blog" class="transition-colors"
+           style="color: var(--color-muted);"
+           onmouseover="this.style.color='var(--color-prompt)'"
+           onmouseout="this.style.color='var(--color-muted)'">
+          ← back to /blog
+        </a>
+      </footer>
+
+    </div>
+  </div>
+</BaseLayout>

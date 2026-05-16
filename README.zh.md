@@ -21,10 +21,16 @@
 ## 特性
 
 - 终端交互界面，支持命令输入、历史记录、Tab 自动补全
-- 内置指令：`whoami`、`blog`、`projects`、`name`、`clear`、`help`
+- 内置指令：`whoami`、`blog`、`ls`、`rss`、`projects`、`search`、`name`、`clear`、`help`
+- 终端内全文搜索文章（`search` 命令，标题/简述/标签三字段匹配）
+- 标签归档页（`/tag/<name>`）与标签索引页（`/tag`）
+- 博客分页（`/blog/page/<n>`），每页文章数可在管理面板中配置
+- 内置三套配色主题，点击标题栏词语循环切换：**Dark**、**Eliana**、**Amaris**
+- 主题切换带平滑过渡动画，偏好通过 `localStorage` 持久化
 - 通过浏览器管理面板（`sudo admin`）完整配置，无需手动编辑文件
 - 博客文章编辑器，支持 Markdown（`sudo blog`）
 - 配置持久化到服务端文件，重新部署后不丢失
+- RSS 订阅源（`/rss.xml`），自动注入 `<head>`
 - ASCII Art 横幅、点阵图、站点信息块（支持 `{uptime}`、`{posts}`、`{words}`、`{last_update}` 变量）
 - 备案号展示、版权文字、"Powered by" 角标
 - 管理面板与博客面板各自独立密码保护（SHA-256 哈希，不存明文）
@@ -84,6 +90,7 @@ npm run dev
 | `PUT /api/config`           | `X-Admin-Token` 头部（值为管理密码的 SHA-256） |
 | `POST /api/auth`            | 公开 — body `{ kind, hash }`，返回 200 / 401 / 429 |
 | `POST/PUT/DELETE /api/posts/*` | `X-Blog-Token` 或 `X-Admin-Token`         |
+| `GET /rss.xml`              | 公开 — 非草稿文章的 RSS 订阅源                 |
 
 登录流程：客户端把密码做 SHA-256 → POST 到 `/api/auth` 验证 → 通过后将该哈希存入 `sessionStorage`，作为后续写请求的 bearer token。
 
@@ -101,7 +108,7 @@ src/
 │   └── Terminal.astro         # 主终端 UI
 ├── config/
 │   ├── terminal.config.ts     # 默认配置（已提交）
-│   └── user.config.json       # 运行时覆盖（勿提交）
+│   └── user.config.json       # 运行时覆盖（自动生成）
 ├── content/
 │   └── posts/                 # Markdown 博客文章
 ├── layouts/
@@ -147,6 +154,8 @@ pm2 startup    # 生成 systemd 单元后，运行它打印出的命令
 参考 `.env.example`。
 
 > **注意**：`src/config/user.config.json` 在运行时需要可写权限。本主题适合 VPS 部署，不适合 Vercel/Netlify 等文件系统只读的无服务器平台。
+
+> **RSS 站点 URL**：`<link rel="alternate" ... href="/rss.xml">` 自动注入。feed 内文章链接使用 `astro.config.mjs` 里的 `site` 值，请在部署前改成你的真实域名（默认占位是 `https://yourdomain.com`）。
 
 > **Content Collection 的 build 时快照**：Astro Content Collections 在 `npm run build` 时把 `src/content/posts` 快照到一起。编辑器在 build 后新建的文章**会**写入磁盘，但 `/blog/<slug>` 路由要重新 build 才会出现。Terminal 里的 `blog` 命令走 runtime API，不受影响。
 
