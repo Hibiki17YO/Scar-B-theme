@@ -13,6 +13,7 @@
 | 2026-05-16 | [05-polish-and-docs.md](./05-polish-and-docs.md) | 第三轮：缓存 / 类型清理 / 文档 |
 | 2026-05-16 | [06-overall-evaluation.md](./06-overall-evaluation.md) | 综合评估 + 大众市场功能盘点 |
 | 2026-05-16 | [07-engineering.md](./07-engineering.md) | 工程化阶段（测试 / CI / lint / Docker） |
+| 2026-05-16 | [08-v1-features.md](./08-v1-features.md) | v1 功能阶段（RSS / 标签 / 分页 / 主题 / 搜索） |
 
 ## 写作约定
 
