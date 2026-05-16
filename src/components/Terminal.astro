@@ -20,9 +20,11 @@ interface Props {
   posts: PostData[];
   siteStats: SiteStats;
   config?: TerminalConfig;
+  hasAdminPass?: boolean;
+  hasBlogPass?: boolean;
 }
 
-const { posts, siteStats, config = defaultConfig } = Astro.props;
+const { posts, siteStats, config = defaultConfig, hasAdminPass = false, hasBlogPass = false } = Astro.props;
 const postsJson = JSON.stringify(posts);
 const configJson = JSON.stringify(config);
 const statsJson  = JSON.stringify(siteStats);
@@ -114,7 +116,7 @@ const statsJson  = JSON.stringify(siteStats);
 </div>
 
 <div id="posts-data" data-posts={postsJson} hidden></div>
-<div id="terminal-config" data-config={configJson} hidden></div>
+<div id="terminal-config" data-config={configJson} hidden data-has-admin-pass={String(hasAdminPass)} data-has-blog-pass={String(hasBlogPass)}></div>
 <div id="site-stats" data-stats={statsJson} hidden></div>
 
 <script>
@@ -145,7 +147,16 @@ const statsJson  = JSON.stringify(siteStats);
     return JSON.parse(el?.dataset.config ?? '{}') as TerminalConfig;
   }
 
+  function loadAuthFlags(): { hasAdminPass: boolean; hasBlogPass: boolean } {
+    const el = document.getElementById('terminal-config');
+    return {
+      hasAdminPass: el?.dataset.hasAdminPass === 'true',
+      hasBlogPass:  el?.dataset.hasBlogPass === 'true',
+    };
+  }
+
   const config = loadConfig();
+  const { hasAdminPass, hasBlogPass } = loadAuthFlags();
 
   // ── Posts data ───────────────────────────────────────────────────────────────
 
@@ -173,7 +184,7 @@ const statsJson  = JSON.stringify(siteStats);
   if (config.showBanner) {
     document.getElementById('banner-art')!.textContent = config.bannerArt;
     document.getElementById('neofetch-prompt')!.innerHTML =
-      `<span style="color:var(--color-prompt)">${config.username}@${config.hostname}:~$</span>` +
+      `<span style="color:var(--color-prompt)">${escapeHtml(config.username)}@${escapeHtml(config.hostname)}:~$</span>` +
       `<span style="color:var(--color-cmd)"> neofetch</span>`;
   } else {
     document.getElementById('banner-art')!.style.display = 'none';
@@ -193,7 +204,7 @@ const statsJson  = JSON.stringify(siteStats);
 
   if (config.icpNumber) {
     const icpHtml = `<a href="https://beian.miit.gov.cn/" target="_blank" rel="noopener noreferrer" style="color:inherit;text-decoration:none;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity=''">` +
-      config.icpNumber.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') +
+      escapeHtml(config.icpNumber) +
       `</a>`;
     // inline version (desktop, right side of title bar)
     const icpInline = document.getElementById('title-bar-icp-inline')!;
@@ -229,7 +240,7 @@ const statsJson  = JSON.stringify(siteStats);
 
       siteInfoEl.style.cssText = 'font-size:0.875rem;line-height:1.7;color:var(--color-muted);margin-bottom:1rem;';
       siteInfoEl.innerHTML = text.split('\n').map(l =>
-        `<div>${l.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') || '&nbsp;'}</div>`
+        `<div>${escapeHtml(l) || '&nbsp;'}</div>`
       ).join('');
     } else {
       siteInfoEl.style.display = 'none';
@@ -257,7 +268,12 @@ const statsJson  = JSON.stringify(siteStats);
   };
 
   function escapeHtml(s: string): string {
-    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    return s
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
   }
 
   function renderLine(line: OutputLine): HTMLElement {
@@ -372,9 +388,8 @@ const statsJson  = JSON.stringify(siteStats);
 
   // ── Admin login flow ─────────────────────────────────────────────────────────
 
-  async function handleLogin(passHash: string, sessionKey: string, targetUrl: string): Promise<void> {
-    if (!passHash) {
-      sessionStorage.setItem(sessionKey, '1');
+  async function handleLogin(kind: 'admin' | 'blog', passSet: boolean, tokenKey: string, targetUrl: string): Promise<void> {
+    if (!passSet) {
       window.location.href = targetUrl;
       return;
     }
@@ -410,11 +425,20 @@ const statsJson  = JSON.stringify(siteStats);
         inputEl.removeEventListener('keydown', onKey);
 
         const hash = await sha256hex(val);
-        if (hash === passHash) {
-          sessionStorage.setItem(sessionKey, '1');
+        let ok: boolean;
+        try {
+          const res = await fetch('/api/auth', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ kind, hash }),
+          });
+          ok = res.ok;
+        } catch { ok = false; }
+
+        if (ok) {
+          sessionStorage.setItem(tokenKey, hash);
           window.location.href = targetUrl;
         } else {
-          // 仅失败时恢复提示符行
           inputLine.insertBefore(inputEl, fakeCursor);
           inputLine.style.display = '';
           passLine.remove();
@@ -573,14 +597,14 @@ const statsJson  = JSON.stringify(siteStats);
     // Admin command: echo normally then prompt for password
     if (cmd === config.adminCommand.toLowerCase()) {
       echoCommand(rawInput.trim());
-      await handleLogin(config.adminPassHash, 'admin_auth', '/admin');
+      await handleLogin('admin', hasAdminPass, 'admin_token', '/admin');
       return;
     }
 
     // Blog admin command
     if (cmd === config.blogCommand.toLowerCase()) {
       echoCommand(rawInput.trim());
-      await handleLogin(config.blogPassHash, 'blog_auth', '/blog-admin');
+      await handleLogin('blog', hasBlogPass, 'blog_token', '/blog-admin');
       return;
     }
 

@@ -3,11 +3,12 @@ import { readdir, readFile, writeFile, rename } from 'node:fs/promises';
 import { join } from 'node:path';
 import { randomBytes } from 'node:crypto';
 import { parseMd, serializeMd, slugify } from './_parser';
-
-const POSTS_DIR = join(process.cwd(), 'src', 'content', 'posts');
+import { PostSchema } from './_schema';
+import { getPostsDir } from '../../../lib/server-auth';
 
 export const GET: APIRoute = async () => {
   try {
+    const POSTS_DIR = getPostsDir();
     const files = await readdir(POSTS_DIR);
     const mdFiles = files.filter(f => f.endsWith('.md') || f.endsWith('.mdx'));
     const posts = await Promise.all(
@@ -27,8 +28,13 @@ export const GET: APIRoute = async () => {
 
 export const POST: APIRoute = async ({ request }) => {
   try {
-    const body = await request.json();
-    const { frontmatter, body: mdBody } = body;
+    const POSTS_DIR = getPostsDir();
+    const raw = await request.json().catch(() => null);
+    const parsed = PostSchema.safeParse(raw);
+    if (!parsed.success) {
+      return Response.json({ error: 'invalid post', issues: parsed.error.issues }, { status: 400 });
+    }
+    const { frontmatter, body: mdBody } = parsed.data;
 
     const baseSlug = slugify(frontmatter.title || 'untitled');
     const files = await readdir(POSTS_DIR);
@@ -41,7 +47,7 @@ export const POST: APIRoute = async ({ request }) => {
     }
 
     const dest = join(POSTS_DIR, `${slug}.md`);
-    const tmp  = dest + '.' + randomBytes(4).toString('hex') + '.tmp';
+    const tmp  = dest + '.' + randomBytes(8).toString('hex') + '.tmp';
     const content = serializeMd(frontmatter, mdBody ?? '');
     await writeFile(tmp, content, 'utf-8');
     await rename(tmp, dest);

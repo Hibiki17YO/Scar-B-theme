@@ -47,9 +47,7 @@ export interface TerminalConfig {
   showBanner: boolean;
   showName: boolean;
   adminCommand: string;
-  adminPassHash: string;
   blogCommand: string;
-  blogPassHash: string;
 }
 
 export const defaultConfig: TerminalConfig = {
@@ -135,7 +133,5 @@ export const defaultConfig: TerminalConfig = {
   showBanner: true,
   showName: true,
   adminCommand: 'sudo admin',
-  adminPassHash: '',
   blogCommand: 'sudo blog',
-  blogPassHash: '',
 };

@@ -2,9 +2,7 @@
 import BaseLayout from '../layouts/BaseLayout.astro';
 import Terminal from '../components/Terminal.astro';
 import { getCollection } from 'astro:content';
-import { readFile } from 'node:fs/promises';
-import { join } from 'node:path';
-import { defaultConfig } from '../config/terminal.config';
+import { getRuntimeConfig, getPostStats } from '../lib/runtime-cache';
 
 const allPosts = await getCollection('posts', ({ data }) => !data.draft);
 allPosts.sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf());
@@ -23,25 +21,14 @@ const postsForTerminal = allPosts.map(post => {
   };
 });
 
-// ── Site stats ────────────────────────────────────────────────────────────────
+// Word count is heavy (reads every post body); cache it by posts-dir fingerprint.
+const { totalWords } = await getPostStats(allPosts.map(p => p.id));
 
-const POSTS_DIR = join(process.cwd(), 'src', 'content', 'posts');
-
-let totalWords = 0;
 let lastUpdateTs = 0;
-
 for (const post of allPosts) {
-  try {
-    const raw = await readFile(join(POSTS_DIR, `${post.id}.md`), 'utf-8');
-    const body = raw.replace(/^---[\s\S]*?---\r?\n/, '');
-    const cjk   = (body.match(/[一-鿿぀-ヿ]/g) ?? []).length;
-    const words  = (body.match(/[a-zA-Z0-9]+/g) ?? []).length;
-    totalWords  += cjk + words;
-  } catch { /* skip unreadable */ }
   const ts = post.data.date.valueOf();
   if (ts > lastUpdateTs) lastUpdateTs = ts;
 }
-
 const lastUpdateDate = lastUpdateTs > 0
   ? new Date(lastUpdateTs).toISOString().slice(0, 10)
   : '';
@@ -52,22 +39,9 @@ const siteStats = {
   lastUpdate: lastUpdateDate,
 };
 
-// ── Load runtime config from user.config.json ────────────────────────────────
-
-let runtimeConfig = { ...defaultConfig };
-try {
-  const CONFIG_PATH = join(process.cwd(), 'src', 'config', 'user.config.json');
-  const raw = await readFile(CONFIG_PATH, 'utf-8');
-  const user = JSON.parse(raw);
-  runtimeConfig = {
-    ...defaultConfig,
-    ...user,
-    whoami: { ...defaultConfig.whoami, ...(user.whoami ?? {}) },
-    builtinCommands: user.builtinCommands ?? defaultConfig.builtinCommands,
-  };
-} catch { /* use defaults */ }
+const { config: runtimeConfig, hasAdminPass, hasBlogPass } = await getRuntimeConfig();
 ---
 
 <BaseLayout title="visitor@hibiki:~$" description="hibiki's terminal-style personal blog">
-  <Terminal posts={postsForTerminal} siteStats={siteStats} config={runtimeConfig} />
+  <Terminal posts={postsForTerminal} siteStats={siteStats} config={runtimeConfig} hasAdminPass={hasAdminPass} hasBlogPass={hasBlogPass} />
 </BaseLayout>

@@ -16,5 +16,11 @@ export default defineConfig({
       theme: 'github-dark',
       wrap: false,
     },
+    // Treat raw HTML inside .md posts as text, not executable markup.
+    // Blocks stored XSS from blog post bodies (`<script>`, `onerror`, etc).
+    // Does not affect .mdx files, which intentionally allow components.
+    remarkRehype: {
+      allowDangerousHtml: false,
+    },
   },
 });

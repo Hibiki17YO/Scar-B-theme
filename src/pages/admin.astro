@@ -339,13 +339,25 @@ const defaultConfigJson = JSON.stringify(defaultConfig);
 
   // ── Auth ─────────────────────────────────────────────────────────────────────
 
+  const TOKEN_KEY = 'admin_token';
+
+  function getToken() {
+    return sessionStorage.getItem(TOKEN_KEY) || '';
+  }
+
   async function checkAuth() {
     const cfg = await loadCurrent();
-    const hash = cfg.adminPassHash ?? '';
+    const passSet = cfg.hasAdminPass === true;
 
-    if (!hash || sessionStorage.getItem('admin_auth') === '1') {
-      showPanel();
-      return;
+    // No password set → open access (first-run setup)
+    if (!passSet) { showPanel(); return; }
+
+    // Already authed in this session → verify token still works
+    const existing = getToken();
+    if (existing) {
+      const ok = await verifyToken(existing);
+      if (ok) { showPanel(); return; }
+      sessionStorage.removeItem(TOKEN_KEY);
     }
 
     const overlay = document.getElementById('auth-overlay');
@@ -359,13 +371,26 @@ const defaultConfigJson = JSON.stringify(defaultConfig);
       const val = authInput.value;
       authInput.value = '';
       const inputHash = await sha256hex(val);
-      if (inputHash === hash) {
-        sessionStorage.setItem('admin_auth', '1');
+      if (await verifyToken(inputHash)) {
+        sessionStorage.setItem(TOKEN_KEY, inputHash);
         showPanel();
       } else {
         document.getElementById('auth-error').style.display = 'block';
       }
     });
+  }
+
+  async function verifyToken(hash) {
+    try {
+      const res = await fetch('/api/auth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ kind: 'admin', hash }),
+      });
+      return res.ok;
+    } catch {
+      return false;
+    }
   }
 
   // ── Dynamic rows ─────────────────────────────────────────────────────────────
@@ -542,12 +567,12 @@ const defaultConfigJson = JSON.stringify(defaultConfig);
       enabled:     row.querySelector('.bc-enabled').checked,
     })).filter(b => b.id);
 
-    // Password handling
-    const current = await loadCurrent();
-    let adminPassHash = current.adminPassHash ?? '';
+    // Password handling — server hashes plain-text on save.
+    // We never read or send the existing hash from the client.
     const newPass = document.getElementById('f-new-pass').value;
     const confirmPass = document.getElementById('f-confirm-pass').value;
     const passError = document.getElementById('pass-error');
+    let newAdminPass;
 
     if (newPass || confirmPass) {
       if (newPass !== confirmPass) {
@@ -556,15 +581,15 @@ const defaultConfigJson = JSON.stringify(defaultConfig);
         return null;
       }
       passError.style.display = 'none';
-      adminPassHash = await sha256hex(newPass);
+      newAdminPass = newPass;
     } else {
       passError.style.display = 'none';
     }
 
-    let blogPassHash = current.blogPassHash ?? '';
     const newBlogPass = document.getElementById('f-blog-new-pass').value;
     const confirmBlogPass = document.getElementById('f-blog-confirm-pass').value;
     const blogPassError = document.getElementById('blog-pass-error');
+    let newBlogPassValue;
 
     if (newBlogPass || confirmBlogPass) {
       if (newBlogPass !== confirmBlogPass) {
@@ -573,12 +598,12 @@ const defaultConfigJson = JSON.stringify(defaultConfig);
         return null;
       }
       blogPassError.style.display = 'none';
-      blogPassHash = await sha256hex(newBlogPass);
+      newBlogPassValue = newBlogPass;
     } else {
       blogPassError.style.display = 'none';
     }
 
-    return {
+    const out = {
       siteTitle:    document.getElementById('f-site-title').value.trim(),
       siteIconUrl:  document.getElementById('f-site-icon').value.trim(),
       username:  document.getElementById('f-username').value.trim(),
@@ -586,9 +611,7 @@ const defaultConfigJson = JSON.stringify(defaultConfig);
       icpNumber: document.getElementById('f-icp').value.trim(),
       copyrightText: document.getElementById('f-copyright').value.trim(),
       adminCommand: document.getElementById('f-admin-cmd').value.trim() || 'su',
-      adminPassHash,
       blogCommand: document.getElementById('f-blog-cmd').value.trim() || 'sudo blog',
-      blogPassHash,
       showDotArt: document.getElementById('toggle-dot-art').checked,
       showBanner:  document.getElementById('toggle-banner').checked,
       dotArt:    document.getElementById('f-dot-art').value.replace(/\r/g, ''),
@@ -609,6 +632,9 @@ const defaultConfigJson = JSON.stringify(defaultConfig);
       siteStartDate:      document.getElementById('f-site-start-date').value,
       siteInfoTemplate:   document.getElementById('f-site-info-template').value.replace(/\r/g, ''),
     };
+    if (newAdminPass) out.newAdminPass = newAdminPass;
+    if (newBlogPassValue) out.newBlogPass = newBlogPassValue;
+    return out;
   }
 
   // ── Status ───────────────────────────────────────────────────────────────────
@@ -662,30 +688,41 @@ const defaultConfigJson = JSON.stringify(defaultConfig);
       if (!cfg) return;
       const res = await fetch('/api/config', {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'X-Admin-Token': getToken() },
         body: JSON.stringify(cfg),
       });
       if (res.ok) {
-        _cachedConfig = cfg;
+        // If admin password changed, the old token is invalid — replace it with the new one
+        if (cfg.newAdminPass) {
+          sessionStorage.setItem(TOKEN_KEY, await sha256hex(cfg.newAdminPass));
+        }
+        _cachedConfig = null;
         showStatus('✓ saved');
+      } else if (res.status === 401) {
+        sessionStorage.removeItem(TOKEN_KEY);
+        showStatus('✗ unauthorized — refresh to log in');
       } else {
         showStatus('✗ save failed');
       }
     });
 
     document.getElementById('btn-reset').addEventListener('click', async () => {
+      if (!confirm('Reset to defaults? All custom site config will be erased. Passwords are preserved.')) return;
       const defaults = getDefaults();
       const res = await fetch('/api/config', {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({}),
+        headers: { 'Content-Type': 'application/json', 'X-Admin-Token': getToken() },
+        body: JSON.stringify({ reset: true }),
       });
       if (res.ok) {
         _cachedConfig = defaults;
-        sessionStorage.removeItem('admin_auth');
-        sessionStorage.removeItem('blog_auth');
+        sessionStorage.removeItem(TOKEN_KEY);
+        sessionStorage.removeItem('blog_token');
         await preloadForm();
         showStatus('↩ reset to defaults');
+      } else if (res.status === 401) {
+        sessionStorage.removeItem(TOKEN_KEY);
+        showStatus('✗ unauthorized — refresh to log in');
       } else {
         showStatus('✗ reset failed');
       }

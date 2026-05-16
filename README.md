@@ -10,9 +10,11 @@ The name comes from two works I love: *Girls' Frontline* (Scar-L & Scar-H) and *
 
 ## Preview
 
-> [动态演示 GIF 待补充 / Demo GIF coming soon]
-
----
+> ![1778825719739](image/README.zh/1778825719739.gif)
+>
+> ![1778825766979](image/README.zh/1778825766979.png)
+>
+> #### [My Blog](hibiki17.icu)
 
 ## Features
 
@@ -29,12 +31,12 @@ The name comes from two works I love: *Girls' Frontline* (Scar-L & Scar-H) and *
 
 ## Stack
 
-| Layer     | Technology                   |
-| --------- | ---------------------------- |
-| Framework | Astro 6 (server mode)        |
-| Styling   | Tailwind CSS v4              |
+| Layer     | Technology                     |
+| --------- | ------------------------------ |
+| Framework | Astro 6 (server mode)          |
+| Styling   | Tailwind CSS v4                |
 | Adapter   | `@astrojs/node` (standalone) |
-| Content   | Astro Content Collections    |
+| Content   | Astro Content Collections      |
 
 ## Quick Start
 
@@ -57,16 +59,37 @@ To configure via the UI, start the dev server and type `sudo admin` in the termi
 
 ### Key fields
 
-| Field                                 | Description                                     |
-| ------------------------------------- | ----------------------------------------------- |
-| `username` / `hostname`               | Shown in the terminal prompt                    |
+| Field                                   | Description                                     |
+| --------------------------------------- | ----------------------------------------------- |
+| `username` / `hostname`             | Shown in the terminal prompt                    |
 | `bannerArt`                           | ASCII art displayed on load                     |
-| `whoami`                              | Author info shown by the `whoami` command       |
-| `adminCommand` / `adminPassHash`      | Admin panel access (hash only, never plaintext) |
-| `blogCommand` / `blogPassHash`        | Blog editor access                              |
-| `showSiteInfo` / `siteInfoTemplate`   | Info block below the banner                     |
+| `whoami`                              | Author info shown by the `whoami` command     |
+| `adminCommand`                        | Trigger word for the admin panel (e.g. `sudo admin`) |
+| `blogCommand`                         | Trigger word for the blog editor (e.g. `sudo blog`) |
+| `showSiteInfo` / `siteInfoTemplate` | Info block below the banner                     |
 | `icpNumber`                           | ICP filing number, links to beian.miit.gov.cn   |
 | `copyrightText`                       | Centered text in the terminal title bar         |
+
+> Passwords are written **only** through the admin panel's password fields (sent as `newAdminPass` / `newBlogPass` over HTTPS, hashed server-side). The stored hashes (`adminPassHash` / `blogPassHash`) are an internal detail — never edit them directly, and they are never exposed via the public `GET /api/config` response.
+
+## Authentication & API
+
+All write endpoints (`PUT /api/config`, `POST/PUT/DELETE /api/posts/*`) require a server-side token check via `src/middleware.ts`.
+
+| Endpoint                  | Auth                              |
+| ------------------------- | --------------------------------- |
+| `GET /api/config`       | Public (hashes stripped)          |
+| `PUT /api/config`       | `X-Admin-Token` header (= SHA-256 of admin password) |
+| `POST /api/auth`        | Public — body `{ kind, hash }`, returns 200 / 401 / 429 |
+| `POST/PUT/DELETE /api/posts/*` | `X-Blog-Token` or `X-Admin-Token` |
+
+Login flow: client SHA-256s the password → POSTs to `/api/auth` for validation → on success, stores the hash in `sessionStorage` as the bearer token.
+
+`/api/auth` is rate-limited to 10 failures per IP per 15 minutes (returns 429).
+
+If no admin password has been set yet, `/api/config` writes are open — set a password from the admin panel before exposing the server publicly. **Do not deploy with an empty password.**
+
+`PUT /api/config` accepts a `{ reset: true }` sentinel to wipe non-password fields back to defaults; an empty body `{}` is rejected with 400 to prevent accidental data loss.
 
 ## Project Structure
 
@@ -88,8 +111,9 @@ src/
     ├── blog/                  # Blog list + post pages
     ├── blog-admin/            # Post editor
     └── api/
-        ├── config.ts          # GET/PUT config API
-        └── posts/             # CRUD API for blog posts
+        ├── auth.ts            # POST: verify password hash, issue session token
+        ├── config.ts          # GET/PUT site config (PUT requires X-Admin-Token)
+        └── posts/             # CRUD blog posts (writes require X-Blog-Token)
 ```
 
 ## Deployment
@@ -101,13 +125,30 @@ npm run build
 node dist/server/entry.mjs
 ```
 
-Or with PM2:
+Keep the process alive with PM2:
 
 ```bash
 pm2 start dist/server/entry.mjs --name scar-b-theme
+pm2 save
+pm2 startup    # generate the systemd unit, then run the command it prints
 ```
 
-> **Note**: `src/config/user.config.json` must be writable at runtime. This theme is designed for VPS or container deployment — not for serverless platforms (Vercel, Netlify, etc.) where the filesystem is read-only.
+Or with a systemd unit directly — see `docs/deployment.md` (TODO).
+
+### Environment variables
+
+| Var | Default | Purpose |
+|---|---|---|
+| `SCAR_CONFIG_PATH` | `src/config/user.config.json` | Writable site config |
+| `SCAR_POSTS_DIR` | `src/content/posts` | Markdown post directory |
+| `SCAR_RATE_LIMIT_MAX_FAILS` | `10` | Auth attempts before throttle |
+| `SCAR_RATE_LIMIT_WINDOW_MS` | `900000` | Throttle window (ms) |
+
+See `.env.example`.
+
+> **Note**: `src/config/user.config.json` must be writable at runtime. This theme is designed for VPS deployment — not for serverless platforms (Vercel, Netlify, etc.) where the filesystem is read-only.
+
+> **Build-time content collection caveat**: Astro Content Collections snapshot `src/content/posts` at `npm run build`. New posts created via the editor after the build *do* persist to disk, but only show up on `/blog/<slug>` after a rebuild. The Terminal `blog` command reads via the runtime API and is unaffected.
 
 ## License
 

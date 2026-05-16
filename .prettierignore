@@ -1,0 +1,9 @@
+dist/
+node_modules/
+.astro/
+public/
+src/config/user.config.json
+src/content/posts/
+package-lock.json
+*.min.js
+*.min.css
