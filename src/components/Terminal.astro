@@ -581,14 +581,13 @@ const statsJson  = JSON.stringify(siteStats);
       { type: 'success', content: 'Available commands:' },
       { type: 'text',    content: '' },
     ];
-    const builtinOrder = ['name', 'whoami', 'blog', 'ls', 'rss', 'projects'];
+    const builtinOrder = ['name', 'whoami', 'blog', 'rss', 'projects', 'search'];
     for (const id of builtinOrder) {
       const b = builtinCfg[id];
       if (!b || !b.enabled) continue;
       lines.push({ type: 'text', content: `  ${b.name.padEnd(10)}${b.description}`, hangIndent: '12ch' });
     }
     lines.push({ type: 'text', content: `  ${'clear'.padEnd(10)}— clear terminal`, hangIndent: '12ch' });
-    lines.push({ type: 'text', content: `  ${'search'.padEnd(10)}— search posts`, hangIndent: '12ch' });
     lines.push({ type: 'text', content: `  ${'help'.padEnd(10)}— show this message`, hangIndent: '12ch' });
     for (const cc of config.customCommands) {
       if (cc.enabled === false) continue;
@@ -605,7 +604,10 @@ const statsJson  = JSON.stringify(siteStats);
     const b = bcfg('name', 'name', '— how to refer to the author');
     if (b.enabled) {
       COMMANDS[b.name.toLowerCase()] = () =>
-        config.nameLines.map(line => ({ type: 'text' as const, content: line }));
+        config.nameLines.flatMap(line =>
+          line === '\\n' ? [{ type: 'text' as const, content: '' }]
+                         : [{ type: 'text' as const, content: line }]
+        );
     }
   }
 
@@ -618,7 +620,10 @@ const statsJson  = JSON.stringify(siteStats);
           { type: 'text',    content: '' },
           { type: 'success', content: `> ${config.whoami.displayName}` },
           { type: 'text',    content: '' },
-          ...config.whoami.bio.map(line => ({ type: 'text' as const, content: line })),
+          ...config.whoami.bio.flatMap(line =>
+            line === '\\n' ? [{ type: 'text' as const, content: '' }]
+                           : [{ type: 'text' as const, content: line }]
+          ),
           { type: 'text',    content: '' },
         ];
         const links = config.whoami.links ?? [];
@@ -659,12 +664,6 @@ const statsJson  = JSON.stringify(siteStats);
         return lines;
       };
       COMMANDS[b.name.toLowerCase()] = blogHandler;
-
-      // ls: only register if blog is enabled, using ls's own name/enabled
-      const ls = bcfg('ls', 'ls', '— alias for blog');
-      if (ls.enabled) {
-        COMMANDS[ls.name.toLowerCase()] = blogHandler;
-      }
     }
   }
 
@@ -707,6 +706,15 @@ const statsJson  = JSON.stringify(siteStats);
     }
   }
 
+  // search
+  {
+    const b = bcfg('search', 'search', '— search posts');
+    if (b.enabled) {
+      const searchName = b.name.toLowerCase();
+      COMMANDS[searchName] = () => [];  // placeholder; handled specially in executeCommand
+    }
+  }
+
   // Register custom commands from config
   for (const cc of config.customCommands) {
     if (cc.enabled === false) continue;
@@ -736,8 +744,9 @@ const statsJson  = JSON.stringify(siteStats);
       return;
     }
 
-    // Search command
-    if (cmd === 'search') {
+    // Search command (handled inline, not via COMMANDS dispatch)
+    const searchCfg = bcfg('search', 'search', '— search posts');
+    if (searchCfg.enabled && cmd === searchCfg.name.toLowerCase()) {
       echoCommand(rawInput.trim());
       await handleSearch();
       return;
@@ -799,7 +808,7 @@ const statsJson  = JSON.stringify(siteStats);
       const partial = inputEl.value.toLowerCase().trim();
       if (!partial) return;
       // Admin command is intentionally excluded from Tab completion
-      const allCmds = [...Object.keys(COMMANDS), 'clear', 'search'];
+      const allCmds = [...Object.keys(COMMANDS), 'clear'];
       const matches = allCmds.filter(c => c.startsWith(partial));
       if (matches.length === 1) {
         inputEl.value = matches[0];
