@@ -1,6 +1,23 @@
 import { readFile, stat, readdir } from 'node:fs/promises';
 import { join } from 'node:path';
-import { defaultConfig, type TerminalConfig } from '../config/terminal.config';
+import { defaultConfig, type TerminalConfig, type BuiltinCommandConfig } from '../config/terminal.config';
+
+// Merge builtin commands: default entries are the source of truth for the id set.
+// User overrides (name/description/enabled) are applied per id.
+// User entries with unknown ids are appended (forward-compatibility).
+function mergeBuiltinCommands(
+  defaults: BuiltinCommandConfig[],
+  userList: BuiltinCommandConfig[] | undefined,
+): BuiltinCommandConfig[] {
+  if (!userList) return defaults;
+  const userMap = new Map(userList.map(b => [b.id, b]));
+  const merged = defaults.map(d => ({ ...d, ...(userMap.get(d.id) ?? {}) }));
+  const defaultIds = new Set(defaults.map(d => d.id));
+  for (const u of userList) {
+    if (!defaultIds.has(u.id)) merged.push(u);
+  }
+  return merged;
+}
 import { getConfigPath, getPostsDir } from './server-auth';
 import type { RuntimePost } from './posts-runtime';
 
@@ -48,7 +65,7 @@ export async function getRuntimeConfig(): Promise<RuntimeConfigResult> {
       ...defaultConfig,
       ...user,
       whoami: { ...defaultConfig.whoami, ...(user.whoami ?? {}) },
-      builtinCommands: user.builtinCommands ?? defaultConfig.builtinCommands,
+      builtinCommands: mergeBuiltinCommands(defaultConfig.builtinCommands, user.builtinCommands),
     };
   } catch { /* fall back to defaults */ }
 
