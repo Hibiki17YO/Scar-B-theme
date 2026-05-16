@@ -224,7 +224,7 @@ const statsJson  = JSON.stringify(siteStats);
     const idx = THEME_CYCLE.indexOf(currentTheme());
     const next = THEME_CYCLE[(idx + 1) % THEME_CYCLE.length];
     setTheme(next);
-    try { localStorage.setItem('theme', next); } catch (_) {}
+    try { localStorage.setItem('theme', next); } catch {}
   }
 
   setTheme(currentTheme());
@@ -605,7 +605,7 @@ const statsJson  = JSON.stringify(siteStats);
     if (b.enabled) {
       COMMANDS[b.name.toLowerCase()] = () =>
         config.nameLines.flatMap(line =>
-          (line === '\\n' || line.trim() === '') ? [{ type: 'text' as const, content: ' ' }]
+          (line === '\\n' || line.trim() === '') ? [{ type: 'text' as const, content: ' ' }]
                          : [{ type: 'text' as const, content: line }]
         );
     }
