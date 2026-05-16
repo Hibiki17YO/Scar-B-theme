@@ -32,6 +32,58 @@ const {
     </script>
     <script is:inline>
       (function() {
+        var labels = { dark: 'Dark', light: 'Eliana', amaris: 'Amaris' };
+        var cycle = ['dark', 'light', 'amaris'];
+
+        function currentTheme() {
+          return document.documentElement.dataset.theme || 'dark';
+        }
+
+        function applyLabel(el, theme) {
+          el.textContent = labels[theme] || theme;
+        }
+
+        function syncToggles(theme) {
+          document.querySelectorAll('[data-theme-toggle]').forEach(function(el) {
+            applyLabel(el, theme);
+          });
+        }
+
+        function setTheme(theme) {
+          if (theme === 'dark') delete document.documentElement.dataset.theme;
+          else document.documentElement.dataset.theme = theme;
+          syncToggles(theme);
+          try { localStorage.setItem('theme', theme); } catch {}
+        }
+
+        function handleToggle(e) {
+          e.preventDefault();
+          e.stopPropagation();
+          var idx = cycle.indexOf(currentTheme());
+          setTheme(cycle[(idx + 1) % cycle.length]);
+        }
+
+        function init() {
+          var toggles = document.querySelectorAll('[data-theme-toggle]');
+          if (!toggles.length) return;
+          syncToggles(currentTheme());
+          toggles.forEach(function(el) {
+            el.addEventListener('click', handleToggle);
+            el.addEventListener('keydown', function(e) {
+              if (e.key === 'Enter' || e.key === ' ') handleToggle(e);
+            });
+          });
+        }
+
+        if (document.readyState === 'loading') {
+          document.addEventListener('DOMContentLoaded', init, { once: true });
+        } else {
+          init();
+        }
+      })();
+    </script>
+    <script is:inline>
+      (function() {
         fetch('/api/config').then(function(r){ return r.json(); }).then(function(cfg) {
           if (cfg.siteTitle) document.title = cfg.siteTitle;
           if (cfg.siteIconUrl) {

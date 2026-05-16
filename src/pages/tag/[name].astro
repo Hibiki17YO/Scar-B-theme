@@ -23,18 +23,28 @@ function dateOnly(d: string): string {
     <div class="max-w-3xl mx-auto font-mono">
 
       <header class="mb-10">
-        <div class="text-sm mb-2" style="color: var(--color-muted);">
-          <a href="/" class="transition-colors" style="color: var(--color-muted);"
-             onmouseover="this.style.color='var(--color-prompt)'"
-             onmouseout="this.style.color='var(--color-muted)'">
-            <span data-prompt>visitor@hibiki:~$</span>
-          </a>
-          <span class="mx-2">cd</span>
-          <a href="/blog" class="transition-colors" style="color: var(--color-muted);"
-             onmouseover="this.style.color='var(--color-prompt)'"
-             onmouseout="this.style.color='var(--color-muted)'">~/blog</a>
-          <span class="mx-2">&&</span>
-          <span style="color: var(--color-cmd);">grep #{tagName}</span>
+        <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between text-sm mb-2" style="color: var(--color-muted);">
+          <div>
+            <a href="/" class="transition-colors" style="color: var(--color-muted);"
+               onmouseover="this.style.color='var(--color-prompt)'"
+               onmouseout="this.style.color='var(--color-muted)'">
+              <span data-prompt>visitor@hibiki:~$</span>
+            </a>
+            <span class="mx-2">cd</span>
+            <a href="/blog" class="transition-colors" style="color: var(--color-muted);"
+               onmouseover="this.style.color='var(--color-prompt)'"
+               onmouseout="this.style.color='var(--color-muted)'">~/blog</a>
+            <span class="mx-2">&&</span>
+            <span style="color: var(--color-cmd);">grep #{tagName}</span>
+          </div>
+          <span
+            data-theme-toggle
+            role="button"
+            tabindex="0"
+            aria-label="Toggle theme"
+            class="cursor-pointer select-none self-start sm:self-auto"
+            style="color: var(--color-muted); letter-spacing: 0.05em;"
+          >Dark</span>
         </div>
         <h1 class="text-xl font-semibold" style="color: var(--color-text);">
           <span style="color: var(--color-prompt);">#</span>{tagName}

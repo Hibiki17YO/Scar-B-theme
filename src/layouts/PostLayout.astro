@@ -19,18 +19,28 @@ const terminalDate = date.toISOString().split('T')[0];
     <article class="max-w-[72ch] mx-auto">
 
       <header class="mb-10">
-        <nav class="mb-6 text-sm font-mono">
-          <a
-            href="/"
-            style="color: var(--color-muted);"
-            class="hover:text-[color:var(--color-prompt)] transition-colors"
-          ><span data-prompt>visitor@hibiki:~$</span></a>
-          <span style="color: var(--color-muted);" class="mx-2">cd</span>
-          <a
-            href="/blog"
-            style="color: var(--color-cmd);"
-            class="hover:text-[color:var(--color-link-hover)] transition-colors"
-          >~/blog</a>
+        <nav class="mb-6 text-sm font-mono flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <a
+              href="/"
+              style="color: var(--color-muted);"
+              class="hover:text-[color:var(--color-prompt)] transition-colors"
+            ><span data-prompt>visitor@hibiki:~$</span></a>
+            <span style="color: var(--color-muted);" class="mx-2">cd</span>
+            <a
+              href="/blog"
+              style="color: var(--color-cmd);"
+              class="hover:text-[color:var(--color-link-hover)] transition-colors"
+            >~/blog</a>
+          </div>
+          <span
+            data-theme-toggle
+            role="button"
+            tabindex="0"
+            aria-label="Toggle theme"
+            class="cursor-pointer select-none self-start sm:self-auto"
+            style="color: var(--color-muted); letter-spacing: 0.05em;"
+          >Dark</span>
         </nav>
 
         <div class="text-sm mb-4 font-mono" style="color: var(--color-muted);">
